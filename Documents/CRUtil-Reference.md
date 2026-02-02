@@ -1,9 +1,8 @@
 # CRUtil Library Reference
 
-CRUtil is a modern C++17 utility library providing 128-bit arithmetic, concurrency
+CRUtil is a modern C++17 utility library providing 128-bit and 256-bit arithmetic, concurrency
 primitives, safe string handling, compile-time string obfuscation, nanosecond-precision
-timing, and portable platform abstractions. All public types live in the `crunnable`
-namespace.
+timing, and portable platform abstractions. All public types live in the `crutil` namespace.
 
 Built with [BuildItFast](https://github.com/pyvadura/BuildItFast) (`bif`).
 
@@ -43,7 +42,7 @@ Both types share the same public interface.
 
 ```cpp
 #include "bigint128.h"
-using namespace crunnable;
+using namespace crutil;
 
 uint128p_t a;                              // default (uninitialized)
 uint128p_t b(42UL);                        // from integral
@@ -173,7 +172,7 @@ auto max_val = lim::max();   // 2^128 - 1
 ### User-defined Literal
 
 ```cpp
-using namespace crunnable::literals;
+using namespace crutil::literals;
 
 auto big = "340282366920938463463374607431768211455"_u128;
 ```
@@ -235,7 +234,7 @@ sub-objects — no raw byte array overlays, no endian-specific code.
 
 ```cpp
 #include "bigint256.h"
-using namespace crunnable;
+using namespace crutil;
 
 uint256_t a;                                              // default
 uint256_t b(42UL);                                        // from integral
@@ -292,7 +291,7 @@ digits10=77, max_digits10=78).
 ### User-defined Literal
 
 ```cpp
-using namespace crunnable::literals;
+using namespace crutil::literals;
 auto big = "115792089237316195423570985008687907853269984665640564039457584007913129639935"_u256;
 ```
 
@@ -311,7 +310,7 @@ Thread-safe 64-bit signed integer using `std::atomic<int64_t>`.
 
 ```cpp
 #include "ainteger.h"
-using namespace crunnable;
+using namespace crutil;
 
 AInteger counter;          // default: 0
 AInteger counter(42);      // initialize to 42
@@ -397,15 +396,14 @@ CRS::throwifempty(str);   // throws CRException if empty
 
 ## String Obfuscation
 
-**Header:** `Source/include/lstring.h`
-**Implementation:** `Source/lstring.cpp`
+**Header:** `Source/include/lstring.h` (header-only)
 
 Compile-time XOR-based string obfuscation. Plaintext string literals never appear in
 the compiled binary.
 
 ```cpp
 #include "lstring.h"
-using namespace crunnable;
+using namespace crutil;
 
 // Encode at compile time
 constexpr auto secret = Obfuscate::encode("my secret string");
@@ -438,7 +436,7 @@ interval delays, and date/time formatting.
 
 ```cpp
 #include "crtimer.h"
-using namespace crunnable;
+using namespace crutil;
 
 CRTime now;                    // captures current time
 CRTime later(NS_IN_ONE_SEC);  // current time + 1 second offset
@@ -528,7 +526,7 @@ Supports recursive and non-recursive modes.
 
 ```cpp
 #include "semaphore.h"
-using namespace crunnable;
+using namespace crutil;
 
 Semaphore sem;                // non-recursive
 Semaphore sem_r(true);        // recursive
@@ -557,7 +555,7 @@ the Semaphore class.
 
 ```cpp
 #include "condition.h"
-using namespace crunnable;
+using namespace crutil;
 
 Condition cond;
 
@@ -678,15 +676,7 @@ bif do -h
 ### Manual Compilation
 
 ```bash
-c++ -std=gnu++17 -g -DDEBUG=1 \
-    -I Source/include -I Test \
-    -c Test/test_bigint.cpp -o Build/osx/amd64/dbg/cobj/test_bigint.o
-
-c++ -std=gnu++17 -g \
-    -o /tmp/test_bigint \
-    Build/osx/amd64/dbg/cobj/test_main.o \
-    Build/osx/amd64/dbg/cobj/test_bigint.o \
-    Build/osx/amd64/dbg/cobj/crstring.o
+c++ -std=gnu++17 -I Source/include -c Source/crstring.cpp -o crstring.o
 ```
 
 ### Requirements
@@ -699,23 +689,32 @@ c++ -std=gnu++17 -g \
 
 ## Testing
 
-Tests use the [Catch2](https://github.com/catchorg/Catch2) framework (single-header,
-included in `Test/catch2.hpp`).
+Tests use the [Catch2](https://github.com/catchorg/Catch2) framework (v2.13.0,
+single-header, included in `Test/catch2.hpp`). The full suite has 132 test cases
+with 907 assertions.
 
-| Test File | Component | Cases | Assertions |
-|-----------|-----------|-------|------------|
-| test_bigint.cpp | bigint.h | 54 | 306 |
-| test_crstring.cpp | crstring.h | -- | -- |
-| test_ainteger.cpp | ainteger.h | -- | -- |
-| test_lstring.cpp | lstring.h | -- | -- |
-| test_condition.cpp | condition.h | -- | -- |
-| test_crtimer.cpp | crtimer.h | -- | -- |
+| Test File | Component |
+|-----------|-----------|
+| test_bigint.cpp | bigint128.h (uint128p_t and uint128_t) |
+| test_bigint256.cpp | bigint256.h (uint256_t) |
+| test_crstring.cpp | crstring.h |
+| test_ainteger.cpp | ainteger.h |
+| test_lstring.cpp | lstring.h |
+| test_condition.cpp | condition.h |
+| test_crtimer.cpp | crtimer.h |
 
-Run all tests:
+Build and run:
 
 ```bash
-/tmp/test_bigint           # run bigint tests
-/tmp/test_bigint -t [pair]  # run only pair-tagged tests
+bif do 0    # build the debug library first
+
+cd Test && g++ -std=gnu++17 -I ../Source/include -o test_runner \
+  test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
+  test_condition.cpp test_crstring.cpp test_crtimer.cpp test_lstring.cpp \
+  ../Source/crstring.cpp -lpthread
+
+./test_runner                # run all tests
+./test_runner "[bigint256]"  # run a specific tag
 ```
 
 Python tests use pytest (`Test/test_hello.py`).
