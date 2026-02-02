@@ -531,17 +531,61 @@ using namespace crutil;
 Semaphore sem;                // non-recursive
 Semaphore sem_r(true);        // recursive
 
-sem.PP;   // lock   (P operation, debug macro records file/function/line)
+sem.PP;   // lock   (P operation)
 sem.VV;   // unlock (V operation)
 ```
-
-In release builds, use `sem.PP` / `sem.VV`. These expand to `P()` / `V()` without
-debug info.
 
 Try-lock:
 
 ```cpp
 sem.TRYPP;   // returns immediately, does not block if already locked
+```
+
+### DEBUG vs Release
+
+In **release** builds, `PP` and `VV` expand to plain `P()` / `V()` calls with no
+overhead.
+
+In **DEBUG** builds (`-DDEBUG`), `PP` and `VV` automatically capture `__FILE__`,
+`__METHOD_NAME__`, and `__LINE__`.  This enables:
+
+- **Call-site reporting** -- error messages and stack traces include the exact
+  file, function, and line of each lock/unlock.
+- **Use-after-destroy detection** -- attempting to lock or unlock a destroyed
+  semaphore throws with a diagnostic message.
+- **Acquisition history** -- a per-semaphore string (`m_where`) records the full
+  lock/unlock history, included in exception messages for debugging ordering
+  issues.
+
+### SEMTRACE
+
+When compiled with both `-DDEBUG` and `-DSEMTRACE`, every `PP`/`VV` call is
+recorded in a global trace ring via `semtraceadd()`.  Each entry stores:
+
+| Field | Description |
+|-------|-------------|
+| `now` | Timestamp (nanosecond precision) |
+| `tid` | Thread id |
+| `sem` | Semaphore pointer |
+| `porv` | true = P (lock), false = V (unlock) |
+| `cost` | Time spent waiting (nanoseconds) |
+| `where` | Call-site string (file::method:line) |
+
+Call `semtracedump(FILE*)` to dump the collected ring to a file descriptor:
+
+```cpp
+semtracedump(stderr);   // dump to stderr (default)
+```
+
+### Verbose Mode
+
+Each semaphore has a verbose tag (default `Semaphore::VERBTAG`).  When set to a
+non-NULL string, lock/unlock operations emit additional `fprintf(stderr, ...)`
+traces showing the owner thread, mutex address, and depth.
+
+```cpp
+sem.setVerbose("MySem");    // enable verbose output
+sem.setVerbose(NULL);       // disable (NULL suppresses output)
 ```
 
 ---
@@ -551,26 +595,52 @@ sem.TRYPP;   // returns immediately, does not block if already locked
 **Header:** `Source/include/condition.h`
 
 A pthread_cond wrapper supporting nanosecond-resolution timeouts, built on top of
-the Semaphore class.
+the Semaphore class.  Supports both broadcast and single-event modes.
 
 ```cpp
 #include "condition.h"
 using namespace crutil;
 
-Condition cond;
+Condition cond;                       // single-event mode
+Condition cond_bc(true);              // broadcast mode
+Condition cond_dbg(false, true);      // single-event with debug tracing
 
 // Wait (blocking)
 cond.waitFor();
 
 // Wait with timeout (nanoseconds)
-cond.waitFor(NS_IN_ONE_SEC);  // 1-second timeout
+int result = cond.waitFor(NS_IN_ONE_SEC);  // 1-second timeout
 
 // Signal one waiter
 cond.raise();
 
-// Broadcast to all waiters
-cond.raise(100);  // signal up to 100 times
+// Broadcast to all waiters (broadcast mode)
+cond_bc.raise();
 ```
+
+### COND_DEBUG
+
+`COND_DEBUG` is defined by default in the header.  Each `Condition` instance has a
+debug flag (off by default) controllable via the constructor's `dflag` parameter or
+at runtime:
+
+```cpp
+Condition cond(false, true);   // dflag=true enables tracing at construction
+cond.setDebug(true);           // or enable at runtime
+cond.setDebug(false);          // disable
+```
+
+When active, `CO_DEBUG` traces are emitted to stderr showing:
+
+| Field | Example |
+|-------|---------|
+| Thread id | `COND(12345)` |
+| Semaphore tag | `[MySem,B]` or `[MySem,N]` (broadcast/normal) |
+| Operation | `Wait`, `Raise`, `wait enter`, `wait exit` |
+| State | `m_fired=1,m_waiters=2,to=1000000000` |
+
+This makes it straightforward to diagnose missed signals, spurious wakeups, and
+ordering problems in multi-threaded code.
 
 ---
 
@@ -578,37 +648,135 @@ cond.raise(100);  // signal up to 100 times
 
 **Header:** `Source/include/crexception.h`
 
-`CRException` extends `std::runtime_error` with file/line/function tracking and
-optional stack traces (when compiled with `DEBUG` and linked with `-rdynamic`).
+`CRException` extends `std::runtime_error` with file/line/function tracking,
+demangled stack traces, and a rich macro API for throwing, catching, and reporting.
 
-### Throwing
+### Compile Flags
+
+Stack traces require `_GNU_SOURCE` and debug symbols.  On Linux, link with
+`-rdynamic` so `backtrace_symbols` can resolve names.  On macOS, no special linker
+flag is needed.
+
+```bash
+# Linux
+g++ -std=gnu++17 -D_GNU_SOURCE -DDEBUG=1 -Og t.cpp -rdynamic
+
+# macOS
+g++ -std=gnu++17 -D_GNU_SOURCE -DDEBUG=1 -Og t.cpp
+```
+
+### Throwing Macros
+
+| Macro | Description |
+|-------|-------------|
+| `CRX_THROW(MSG, ...)` | Throw with errno=-1 |
+| `CRX_THROW_ERR(ERR, MSG, ...)` | Throw with explicit errno |
+| `CRX_THROW_CHK(ERR, MSG, ...)` | Throw unless current thread is canceled |
+| `CRX_TIF(EXPR, MSG, ...)` | Throw if EXPR is true |
+| `CRX_TUNLESS(EXPR, MSG, ...)` | Throw if EXPR is false |
+| `CRX_TIF_ERR(EXPR, ERR, MSG, ...)` | Throw with errno if EXPR is true |
+| `CRX_TIFNULL(PTR)` | Throw on NULL, otherwise return PTR |
+
+All MSG arguments are printf-style format strings.
 
 ```cpp
 CRX_THROW("something went wrong: %s", detail);
-CRX_THROW_ERR(errno, "I/O error: %s", path);
-CRX_TIF(ptr == nullptr, "null pointer");          // throw if true
-CRX_TUNLESS(size > 0, "size must be positive");   // throw unless true
-auto p = CRX_TIFNULL(ptr);                        // throw if null, return ptr
+CRX_THROW_ERR(ENOENT, "file %s not found", path);
+CRX_TIF(ptr == nullptr, "unexpected null");
+CRX_TUNLESS(count > 0, "count must be positive");
+CRX_TIF_ERR(fd < 0, errno, "open failed: %s", path);
+int* p = CRX_TIFNULL(getPointer());   // returns the pointer if non-NULL
 ```
 
-### Catching
+### Catching and Reporting Macros
+
+| Macro | Description |
+|-------|-------------|
+| `CRX_CAPTURE_CATCH(STR, CRX)` | Append full catch summary (pid, tid, file:line, raised detail) to a `std::string` |
+| `CRX_REPORT_CATCH(FD, CRX)` | Write catch summary to a `FILE*`; in DEBUG builds adds separator lines |
+
+```cpp
+try {
+   doWork();
+} catch (CRException& e) {
+   // Append to a string for later use
+   string report;
+   CRX_CAPTURE_CATCH(report, e);
+
+   // Or write directly to a file descriptor
+   CRX_REPORT_CATCH(stderr, e);
+}
+```
+
+### Stack Trace Macros
+
+| Macro | Description |
+|-------|-------------|
+| `CRX_STACKTRACE(FD, ERR, RETHROW, MSG, ...)` | Capture a stack trace to FILE*; optionally rethrow |
+| `CRX_REPORT_TRACE(FD, ERR, RETHROW, MSG, ...)` | Alias for CRX_STACKTRACE |
+
+The RETHROW parameter controls whether the exception is re-thrown after reporting.
+
+```cpp
+// Capture a stack trace to stderr, do not rethrow
+CRX_STACKTRACE(stderr, -1, false, "checkpoint: state=%d", state);
+
+// Capture and rethrow
+CRX_STACKTRACE(stderr, errno, true, "operation failed: %s", msg);
+```
+
+Stack traces are automatically demangled using `abi::__cxa_demangle()` so that
+function names appear in readable C++ form rather than raw mangled symbols.
+
+### Catching via operator<< and operator+=
 
 ```cpp
 try {
    do_work();
 } catch (CRException& e) {
-   std::cerr << e;          // prints file, line, function, message, stack trace
-   std::cerr << e.what();   // just the message
-   std::cerr << e.errmsg(); // system error message if errno was set
+   std::cerr << e;          // full output: file, line, function, message, errno, calltrace
+   std::cerr << e.what();   // just the formatted message
+   std::cerr << e.errmsg(); // system error string if errno > 0, else what()
+
+   string out;
+   out += e;                // append full output to string
 }
 ```
 
+### Accessors
+
+| Method | Returns |
+|--------|---------|
+| `what()` | Formatted message (const char*) |
+| `what(string&)` | Formatted message via reference |
+| `errmsg()` | System error string for positive errno, else what() |
+| `errmsg(string&)` | System error string via reference |
+| `file()` | Source filename |
+| `line()` | Source line number |
+| `geterrno()` | Error number passed at throw time |
+| `toString(string&)` | Full exception output via reference |
+
 ### Thread Cancellation
 
+`CRX_THROW_CHK` and the rethrow path of `CRX_STACKTRACE` consult an internal
+cancel map.  When a thread is marked as canceled, throws from **other** threads
+are suppressed while the canceled thread shuts down.
+
 ```cpp
+pid_t tid = CRX_GETTID();
 CRException::notifyCancel(tid);    // mark thread as canceled
-CRException::clearCancel(tid);     // clear cancellation
-CRException::isThreadCanceled(tid); // check if canceled
+// ... shutdown work ...
+CRException::clearCancel(tid);     // clear when the thread is joined
+```
+
+### Static-Only Mode
+
+Setting static-only mode suppresses pid/tid and calltrace from the output, useful
+for contexts where only the message matters:
+
+```cpp
+e.setStaticOnly(true);
+std::cerr << e;   // omits pid/tid and calltrace
 ```
 
 ---
@@ -625,7 +793,7 @@ network byte order macros (`htonll`/`ntohll`).
 
 Portable endianness detection and byte-swap macros. Supports Linux, macOS, FreeBSD,
 NetBSD, OpenBSD, DragonFly, Windows. Defines `__BYTE_ORDER`, `__LITTLE_ENDIAN`,
-`__BIG_ENDIAN` on all platforms.
+`__BIG_ENDIAN` on all platforms. Courtesy of [Mathias Panzenböck](https://gist.github.com/panzi/6856583).
 
 ### crlikely.h
 
@@ -690,13 +858,14 @@ c++ -std=gnu++17 -I Source/include -c Source/crstring.cpp -o crstring.o
 ## Testing
 
 Tests use the [Catch2](https://github.com/catchorg/Catch2) framework (v2.13.0,
-single-header, included in `Test/catch2.hpp`). The full suite has 132 test cases
-with 907 assertions.
+single-header, included in `Test/catch2.hpp`). The full suite has 164 test cases
+with 966 assertions.
 
 | Test File | Component |
 |-----------|-----------|
 | test_bigint.cpp | bigint128.h (uint128p_t and uint128_t) |
 | test_bigint256.cpp | bigint256.h (uint256_t) |
+| test_crexception.cpp | crexception.h (macros, catch/report, stack traces, thread cancellation) |
 | test_crstring.cpp | crstring.h |
 | test_ainteger.cpp | ainteger.h |
 | test_lstring.cpp | lstring.h |
@@ -708,13 +877,14 @@ Build and run:
 ```bash
 bif do 0    # build the debug library first
 
-cd Test && g++ -std=gnu++17 -I ../Source/include -o test_runner \
+cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -I ../Source/include -o test_runner \
   test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
-  test_condition.cpp test_crstring.cpp test_crtimer.cpp test_lstring.cpp \
-  ../Source/crstring.cpp -lpthread
+  test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
+  test_lstring.cpp ../Source/crstring.cpp -lpthread
 
-./test_runner                # run all tests
-./test_runner "[bigint256]"  # run a specific tag
+./test_runner                   # run all tests
+./test_runner "[bigint256]"     # run a specific tag
+./test_runner "[crexception]"   # run exception tests
 ```
 
 Python tests use pytest (`Test/test_hello.py`).
