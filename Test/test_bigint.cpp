@@ -1178,3 +1178,39 @@ TEST_CASE("Intrinsic noexcept verification", "[bigint][intrinsic][noexcept]") {
 }
 
 #endif /* INT128_INTRINSIC */
+
+
+// =============================================================================
+// Endian-safe array overlay tests
+// =============================================================================
+
+TEST_CASE("Pair endian-safe array overlay", "[bigint][pair][endian]") {
+   // hi=0x0000000400000003, lo=0x0000000200000001
+   uint128p_t v(0x0000000400000003ULL, 0x0000000200000001ULL);
+
+   REQUIRE(v.m_u.ub32[W32(0)] == 1);
+   REQUIRE(v.m_u.ub32[W32(1)] == 2);
+   REQUIRE(v.m_u.ub32[W32(2)] == 3);
+   REQUIRE(v.m_u.ub32[W32(3)] == 4);
+
+   REQUIRE(v.m_u.ub64[W64(0)] == 0x0000000200000001ULL);
+   REQUIRE(v.m_u.ub64[W64(1)] == 0x0000000400000003ULL);
+
+   REQUIRE(v.m_u.ub16[W16(0)] == 1);
+   REQUIRE(v.m_u.ub16[W16(4)] == 3);
+}
+
+#ifdef INT128_INTRINSIC
+TEST_CASE("Intrinsic endian-safe array overlay", "[bigint][intrinsic][endian]") {
+   uint128_t v(0x0000000400000003ULL, 0x0000000200000001ULL);
+
+   REQUIRE(v.m_u.ub32[W32(0)] == 1);
+   REQUIRE(v.m_u.ub32[W32(1)] == 2);
+   REQUIRE(v.m_u.ub32[W32(2)] == 3);
+   REQUIRE(v.m_u.ub32[W32(3)] == 4);
+
+   // BI_SLO / BI_SHI should map correctly
+   REQUIRE(v.BI_SLO == 0x0000000200000001ULL);
+   REQUIRE(v.BI_SHI == 0x0000000400000003ULL);
+}
+#endif

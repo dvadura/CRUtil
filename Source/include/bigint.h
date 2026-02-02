@@ -55,8 +55,23 @@
 #define INT256_INTRINSIC
 #endif
 
-static_assert(__BYTE_ORDER == __LITTLE_ENDIAN,
-   "bigint.h requires little-endian byte order; big-endian is not supported");
+// Compile-time index remapping: logical index 0 = least-significant word.
+// On little-endian these are identity (zero overhead, identical codegen).
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+   #define W64(i) (i)
+   #define W32(i) (i)
+   #define W16(i) (i)
+   #define W8(i)  (i)
+   static_assert(W32(0) == 0 && W32(3) == 3, "LE index sanity check");
+#elif __BYTE_ORDER == __BIG_ENDIAN
+   #define W64(i) (1  - (i))
+   #define W32(i) (3  - (i))
+   #define W16(i) (7  - (i))
+   #define W8(i)  (15 - (i))
+   static_assert(W32(0) == 3 && W32(3) == 0, "BE index sanity check");
+#else
+   #error "Unsupported byte order"
+#endif
 
 #define DIV_ZEROMSG   "BINT: divide by zero"
 #define INVALID_INT   "BINT: invalid unsigned integer [%s]"
@@ -659,10 +674,10 @@ namespace crunnable {
             }
 
             // compute the length of each term.
-            for (t=BI_BYT_PLEN/sizeof(uint32_t)-1; t >= 0 && BI_UB32[t] == 0; --t) {
+            for (t=BI_BYT_PLEN/sizeof(uint32_t)-1; t >= 0 && BI_UB32[W32(t)] == 0; --t) {
             }
 
-            for (n=BI_BYT_PLEN/sizeof(uint32_t)-1; n >= 0 && rhs.BI_UB32[n] == 0; --n) {
+            for (n=BI_BYT_PLEN/sizeof(uint32_t)-1; n >= 0 && rhs.BI_UB32[W32(n)] == 0; --n) {
             }
 
             // compute the product, and watch for overflow
@@ -671,18 +686,18 @@ namespace crunnable {
 
                for (int j=0; j <= n; ++j) {
                   size_t ix = i+j;
-                  uint64_t uv = (uint64_t)BI_UB32[i]*(uint64_t)rhs.BI_UB32[j]+c;
+                  uint64_t uv = (uint64_t)BI_UB32[W32(i)]*(uint64_t)rhs.BI_UB32[W32(j)]+c;
 
                   if (ix < BI_BYT_PLEN/sizeof(uint32_t)) {
-                     uv += (uint64_t)wr.BI_UB32[ix];
-                     wr.BI_UB32[ix] = (uv&0xffffffffUL);
+                     uv += (uint64_t)wr.BI_UB32[W32(ix)];
+                     wr.BI_UB32[W32(ix)] = (uv&0xffffffffUL);
                   }
                   c = (uv >> 32);
                }
 
                size_t ix = i+n+1;
                if (ix < BI_BYT_PLEN/sizeof(uint32_t)) {
-                  wr.BI_UB32[ix] = c;
+                  wr.BI_UB32[W32(ix)] = c;
                }
                else {
                   // Intrinsic version does not throw, so neither should this.
@@ -733,17 +748,17 @@ namespace crunnable {
             // otherwise do base 2^32 long division, on up to 4 operands
             // a b c d / y ==> (a b)/y ((a b)%y b)/y ...
             //
-            q.BI_UB32[3] = (uint32_t) (x.BI_UB32[3]/y);
-                     tmp = (((uint64_t)(x.BI_UB32[3]%y)) << 32) + (uint64_t) x.BI_UB32[2];
+            q.BI_UB32[W32(3)] = (uint32_t) (x.BI_UB32[W32(3)]/y);
+                         tmp = (((uint64_t)(x.BI_UB32[W32(3)]%y)) << 32) + (uint64_t) x.BI_UB32[W32(2)];
 
-            q.BI_UB32[2] = (uint32_t) (tmp/y64);
-                     tmp = ((tmp - ((uint64_t)q.BI_UB32[2])*y64) << 32) + (uint64_t) x.BI_UB32[1];
+            q.BI_UB32[W32(2)] = (uint32_t) (tmp/y64);
+                         tmp = ((tmp - ((uint64_t)q.BI_UB32[W32(2)])*y64) << 32) + (uint64_t) x.BI_UB32[W32(1)];
 
-            q.BI_UB32[1] = (uint32_t) (tmp/y64);
-                     tmp = ((tmp - ((uint64_t)q.BI_UB32[1])*y64) << 32) + (uint64_t) x.BI_UB32[0];
+            q.BI_UB32[W32(1)] = (uint32_t) (tmp/y64);
+                         tmp = ((tmp - ((uint64_t)q.BI_UB32[W32(1)])*y64) << 32) + (uint64_t) x.BI_UB32[W32(0)];
 
-            q.BI_UB32[0] = (uint32_t) (tmp/y64);
-                       x = tmp - ((uint64_t)q.BI_UB32[0])*y64;
+            q.BI_UB32[W32(0)] = (uint32_t) (tmp/y64);
+                           x = tmp - ((uint64_t)q.BI_UB32[W32(0)])*y64;
 
             return q;
          }
@@ -787,8 +802,8 @@ namespace crunnable {
             }
 
             // Short circuit if y is only bottom 32 bits.
-            if (y.isLow() == true && y.BI_UB32[1] == 0) {
-               return rmdiv32(x, y.BI_UB32[0]);
+            if (y.isLow() == true && y.BI_UB32[W32(1)] == 0) {
+               return rmdiv32(x, y.BI_UB32[W32(0)]);
             }
 
             // Now we need to perform full base 2^16 division on the pair.
@@ -827,13 +842,13 @@ namespace crunnable {
 
             // compute n,t using base 2^16 digits
             for (n=BI_BYT_PLEN/sizeof(uint16_t)-1; n > 1; --n) {
-               if (x.BI_UB16[n] != 0) {
+               if (x.BI_UB16[W16(n)] != 0) {
                   break;
                }
             }
 
             for (t=BI_BYT_PLEN/sizeof(uint16_t)-1; t > 1; --t) {
-               if (y.BI_UB16[t] != 0) {
+               if (y.BI_UB16[W16(t)] != 0) {
                   break;
                }
             }
@@ -841,7 +856,7 @@ namespace crunnable {
             // if divisor is bigger than the dividend, then x is the remainder, and
             // result is 0
             q = 0UL;
-            if (n < t || (n == t && x.BI_UB16[n] < y.BI_UB16[t])) {
+            if (n < t || (n == t && x.BI_UB16[W16(n)] < y.BI_UB16[W16(t)])) {
                // q is result, x is remainder
                return q;
             }
@@ -856,7 +871,7 @@ namespace crunnable {
             }
 
             while(x >= tr) {
-               ++q.BI_UB16[i];
+               ++q.BI_UB16[W16(i)];
                x -= tr;
             }
 
@@ -864,32 +879,32 @@ namespace crunnable {
             for (i=n; i > t; --i) {
                int ix = i-t-1;
 
-               if (x.BI_UB16[i] == y.BI_UB16[t]) {
-                  q.BI_UB16[ix] = (uint16_t) 0xffff;
+               if (x.BI_UB16[W16(i)] == y.BI_UB16[W16(t)]) {
+                  q.BI_UB16[W16(ix)] = (uint16_t) 0xffff;
                }
                else {
-                  unsigned int tmp = (unsigned int) x.BI_UB16[i];
+                  unsigned int tmp = (unsigned int) x.BI_UB16[W16(i)];
                   tmp <<= 16;
-                  tmp |= (unsigned int) x.BI_UB16[i-1];
+                  tmp |= (unsigned int) x.BI_UB16[W16(i-1)];
 
-                  q.BI_UB16[ix] = (uint16_t) (tmp / (unsigned int) y.BI_UB16[t]);
+                  q.BI_UB16[W16(ix)] = (uint16_t) (tmp / (unsigned int) y.BI_UB16[W16(t)]);
                }
 
-               uint64_t lt = (((uint64_t)y.BI_UB16[t]) << 16) | (uint64_t) y.BI_UB16[t-1];
-               uint64_t rt = (((uint64_t)x.BI_UB16[i]) << 32) | (((uint64_t)x.BI_UB16[i-1]) << 16) | ((uint64_t)x.BI_UB16[i-2]);
+               uint64_t lt = (((uint64_t)y.BI_UB16[W16(t)]) << 16) | (uint64_t) y.BI_UB16[W16(t-1)];
+               uint64_t rt = (((uint64_t)x.BI_UB16[W16(i)]) << 32) | (((uint64_t)x.BI_UB16[W16(i-1)]) << 16) | ((uint64_t)x.BI_UB16[W16(i-2)]);
 
-               while (((uint64_t) q.BI_UB16[ix])*lt > rt) {
-                  --q.BI_UB16[ix];
+               while (((uint64_t) q.BI_UB16[W16(ix)])*lt > rt) {
+                  --q.BI_UB16[W16(ix)];
                }
 
                // Note: rather than test if x < 0, we can test if subtraction term is greater than x
                //       and adjust the term appropriately before subtracting from x.
                tr = y << (ix << 4);
-               pair_t ty = tr*((uint64_t)q.BI_UB16[ix]);
+               pair_t ty = tr*((uint64_t)q.BI_UB16[W16(ix)]);
 
                if (ty > x) {
                   ty -= tr;
-                  --q.BI_UB16[ix];
+                  --q.BI_UB16[W16(ix)];
                }
 
                x -= ty;
@@ -1053,7 +1068,7 @@ namespace crunnable {
          char *p = buf;
          bool started = false;
          for (int i = 3; i >= 0; --i) {
-            uint32_t w = BI_UB32[i];
+            uint32_t w = BI_UB32[W32(i)];
             if (!started && w == 0) continue;
             if (!started) {
                p += snprintf(p, (size_t)(buf + sizeof(buf) - p), "%x", w);
@@ -1111,12 +1126,12 @@ namespace crunnable {
          output = tag;
          output += ": ";
 
-         varr = (((char *) varr) + BI_BYT_PLEN-((len == 7) ? sizeof(uint16_t) : sizeof(uint32_t)));
-
          for (int i=len; i>=0; --i) {
-            CRS::snprintf(buf, 64, fmt, (len == 7) ? *((uint16_t *) varr) : *((uint32_t *) varr));
+            if (len == 7)
+               CRS::snprintf(buf, 64, fmt, ((const uint16_t *)varr)[W16(i)]);
+            else
+               CRS::snprintf(buf, 64, fmt, ((const uint32_t *)varr)[W32(i)]);
             output += buf;
-            varr = (((char *) varr) - ((len == 7) ? sizeof(uint16_t) : sizeof(uint32_t)));
          }
 
          return output;
@@ -1188,8 +1203,8 @@ namespace crunnable {
 
 #define UInt128t TVal
 
-#define BI_SLO   BI_UB64[0]
-#define BI_SHI   BI_UB64[1]
+#define BI_SLO   BI_UB64[W64(0)]
+#define BI_SHI   BI_UB64[W64(1)]
 
       // --------------------------------------------------------------------------------
       // Constructors
@@ -1814,7 +1829,7 @@ namespace crunnable {
          char *p = buf;
          bool started = false;
          for (int i = 3; i >= 0; --i) {
-            uint32_t w = BI_UB32[i];
+            uint32_t w = BI_UB32[W32(i)];
             if (!started && w == 0) continue;
             if (!started) {
                p += snprintf(p, (size_t)(buf + sizeof(buf) - p), "%x", w);
@@ -1871,12 +1886,12 @@ namespace crunnable {
          output = tag;
          output += ": ";
 
-         varr = (((char *) varr) + BI_BYT_PLEN-((len == 7) ? sizeof(uint16_t) : sizeof(uint32_t)));
-
          for (int i=len; i>=0; --i) {
-            CRS::snprintf(buf, 64, fmt, (len == 7) ? *((uint16_t *) varr) : *((uint32_t *) varr));
+            if (len == 7)
+               CRS::snprintf(buf, 64, fmt, ((const uint16_t *)varr)[W16(i)]);
+            else
+               CRS::snprintf(buf, 64, fmt, ((const uint32_t *)varr)[W32(i)]);
             output += buf;
-            varr = (((char *) varr) - ((len == 7) ? sizeof(uint16_t) : sizeof(uint32_t)));
          }
 
          return output;

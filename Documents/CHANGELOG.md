@@ -1,4 +1,35 @@
 ===============================================================================================
+# Big-endian support for bigint.h
+
+February 02, 2026 :: 1:50 PM EST (UTC: 18:50)
+
+Added compile-time index-remapping macros (`W64`/`W32`/`W16`/`W8`) to `Source/include/bigint.h`
+so that all union array overlays (`ub32[]`, `ub16[]`, `ub64[]`) are addressed by logical index
+(0 = least-significant word) regardless of byte order.
+
+1. **Index macros**: Replaced the LE-only `static_assert` with `W64`/`W32`/`W16`/`W8` macros
+   that are identity on little-endian and mirror-flip on big-endian. Added sanity `static_assert`s.
+
+2. **BI_SLO/BI_SHI**: Changed from `BI_UB64[0]`/`BI_UB64[1]` to `BI_UB64[W64(0)]`/`BI_UB64[W64(1)]`
+   in the `single` class, fixing ~20 downstream use sites (casts, toString, hash, free-standing ops).
+
+3. **toHexString**: Wrapped `BI_UB32[i]` with `BI_UB32[W32(i)]` in both `pair` and `single`.
+
+4. **toStringDigits**: Replaced pointer-arithmetic walk with indexed access using `W32`/`W16`
+   in both `pair` and `single`.
+
+5. **operator\* (pair multiply)**: Wrapped all 7 `BI_UB32[expr]` sites with `W32(expr)`.
+
+6. **rmdiv32 (pair)**: Wrapped all 12 hardcoded `BI_UB32[N]` indices with `W32(N)`.
+
+7. **rmdiv (pair)**: Wrapped all ~20 `BI_UB16[expr]` and `BI_UB32[expr]` sites with `W16`/`W32`.
+
+8. **Tests**: Added 2 new test cases (`Pair endian-safe array overlay`,
+   `Intrinsic endian-safe array overlay`) verifying correct index mapping.
+
+Zero behavior change on little-endian — macros compile to identity `(i)`.
+
+===============================================================================================
 # Utility, portability, and modern C++ enhancements to bigint.h
 
 February 02, 2026 :: 1:19 PM EST (UTC: 18:19)
