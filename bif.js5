@@ -1,0 +1,87 @@
+{
+   dsl_version: 1,
+
+   loggers: {
+      default: 'build',
+
+      build: [{
+            enabled: true,
+            name: 'devel',
+            facility: 'stream',
+            channel: 'stderr',
+            level: 'info',
+         },
+      ]
+   },
+
+   project: {
+      config: {
+         pkgname: 'CRUtil',
+
+         // typically located in the project root directory. Can be overriden if necessary.
+         // depimap: './imap.yml',
+
+         // include is implicit when the ProjectConfig object is initialized.
+         // __include__ : 'Config/defaults.js5'
+
+         // If you need to override a config item, or add to one of the configured types.
+         // do it here. You should not remove a pre-configured type instead do not include
+         // the value in the builds section below.
+      },
+
+      artifacts: {
+         // List of top level targets that we want to build, 'auto' or empty will build every defined target for the
+         // host platform and architecture. An entry of an artifact as shown by bif do -l, will mean build only the
+         // selected entry, alternatively you can negate an entry by prefixing it with an exclamation mark.
+         //
+         // Wildcards in the form of regexps coming soon.
+         //
+         // Use this to restrict builds to only the selected targets.
+         //
+         // Targets will be built in the order listed in the filter. Note there is no parallelism in building
+         // targets, just when a target and its subcomponents are made is parallelism used. We may re-visit this in
+         // the future. However, for now this is how it is.
+         //
+         filter: ['auto'],
+
+         // run 'bif do -l' to get a list of top level artifact names, you can then use the names in the definition
+         // of filter: [...] above to restrict the artifacts that will be built, otherwise 'auto' means that all
+         // will be attempted conditioned by platform. Thus 'auto' is the sane default.
+         //
+         // Use do -l to list all potential targets that bif has generated. To build a specific one you can
+         // issue 'bif do /1' to build the target tagged as '1', or bif do /1/2 to build 1, and 2.
+         //
+         // Note: Darwin and x86_64 are the defaults for platform and architecture respectively,
+         //       and can be safely omitted form the target definition.
+         //
+         targets:[
+            // Use Tar+gzip wrappers on non-windows
+            {  archetype: 'Library',
+               build: ['Release'],
+               flavor: ['CLang'],
+               wrapper: [[], ['Tar', 'Gzip']],
+            },
+         ],
+
+         tests: {},
+      },
+   },
+
+   // Deployment configurations. This defines which bundles should be delivered to each of the deployment
+   // environments.
+   deployments: {
+      local: [],    // local dev environment
+      test: [],     // smoke/fire/inferno/integ test environment
+      pipeline: [], // deploy an updated pipeline configuration
+      qa: [],       // alpha test environment
+      beta: [],     // beta pre-prod environment
+      prod: [],     // production environment
+   },
+
+   // The pipeline defines trigger events for auto/manual deployment between deployment stages,
+   // It also maps each stage to an infrastructure availability zone.
+   //
+   // Availability zones could be custom, virtual, AWS, Azure, or ...
+   pipelines: {
+   }
+}

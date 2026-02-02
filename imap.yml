@@ -1,0 +1,199 @@
+# See this YAML reference for info on specifying YAML values.
+#
+#     https://learnxinyminutes.com/docs/yaml/
+#
+# target: {
+#    env: {
+#      key : value,
+#      ...
+#    }
+#
+#    virtual: False
+#
+#    // the winning try (recipe) block will set the node adir, and the recipe BDIR.
+#    // individual requisites will have an adir (where they can be found)
+#    //
+#    // during macro expansion if a Node is found, in all cases it when the name is
+#    // expanded it is location_to(Node.adir()) we always expand from our current
+#    // location (typically BDIR) to the Node's adir representing where it is or
+#    // where it will be when the recipe completes.
+#    //
+#    // @  -> target
+#    // ^  -> yields
+#    // +  -> byproducts
+#    //
+#    // <  -> requisites includes uses
+#    // ?  -> requisites that need updating
+#    // #  -> needs/prerequisites verified, must exist
+#    // ## -> uses/prerequisites only checked for time stamps, ok if missing
+#    // 
+#    // thus {@} expands to path_to(target.adir(),location)/target
+#    //      {<} expands to [path_to(R.adir(),location)/R.name() for R in <]
+#    //
+#    try: [                               // try is optional if single inference ruleset
+#      { adir: <location:.>,
+#        bdir: <location:${ADIR}>,        // default is adir
+#        yields: [glob1, glob2, ...],     // default is @
+#        byproducts: [glob1, glob2, ...], // default is []
+#        needs: [...],                    // default is [], means leaf target
+#        uses:  [...],                    // default is []
+#        env:{<key>:<value>, ...},        // default is {}
+#        exports:[<name>,...],            // default is {}
+#
+#        steps:                           // steps is optional if only single recipe
+#        {  tool: <toolref:make>,         // refers to tool in tools definition
+#           timeout: <value:3600s>,
+#           ignore: False,
+#           silent: False,
+#           hidden: False,
+#           options:[<option>, ...],
+#           args:[<arg>,...],
+#         },
+#         { ... step ... },
+#      },
+#      { ... try ... },
+#    ],
+# }
+#
+
+# ----------------------------------------------
+# PATH conventions
+# ----------------------------------------------
+# ~  is an alias for {BIF_PRJ_ROOTDIR}
+# ~~ is an alias for {~{USER}}
+# /  refers to current filesystem root
+# // refers to current network filesystem root
+#
+# When matching target names, _ are wild cards that in the recipe of the matched term can be expanded
+# as {n} where n is the n'th underscore from the start of the target name, initial index is 1.
+#
+# macro expressions are expanded using {MACRO}
+#
+# path expressions are evaluated as cross product via:
+#    <a b>/<c d>
+# yields a/c a/d b/c b/d
+#    there are functions available that further condion the expanded output
+# And ofcourse you can mix and match.
+#
+
+# ==============================================================================================
+# Global Environment Settings, go wild
+# ==============================================================================================
+env:
+  PRJ_CLANG_SOURCEDIR:  '{BIF_PRJ_SOURCEDIR}/clang'
+  PRJ_PYTHON_SOURCEDIR: '{BIF_PRJ_SOURCEDIR}/python'
+  # Note that the use of {1}, and {2} here is highly dependent on them having the correct values
+  # when they are expanded in context below. If any targets have different capture groups then
+  # either be explicit or redefine this macro in an env: section in that target, recipe or recipe 
+  # step.
+  BIF_LOC_BUILDDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}/{2}.lower()'
+
+# ==============================================================================================
+# Root Artifact Targets for running TESTS
+# ==============================================================================================
+#     The way that this works is to create a dependency from the +tst flavor of the package
+#     on to the non-test flavor and to set CFLAGS and other build environment settings to
+#     get a build that can then link with a framework and run the test. These targets are
+#     processed when the user issues:
+#
+#     bif test ...
+# ==============================================================================================
+#     ---------
+#     CLANG
+#     ---------
+#     <PKG>+cl+tst,{BIF_ART_VERSION}-osx.amd64.DBG-{buildid}.bin
+#                                                  {1}     {2}    {3}
+#
+'{BIF_ART_NAME}+cl+tst,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.bin' :
+  adir: '{BIF_LOC_BUILDDIR}'
+  needs:
+  - '{BIF_ART_NAME}+cl-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.bin'
+  env:
+    CFLAGS: ['-std=gnu++17', '-g', '-DDEBUG=1']
+  virtual: true
+  tool: echo
+  args:
+  - 'Binary is done, modify this recipe to add steps that link with a test framework, and run the test.'
+
+
+# ==============================================================================================
+# Root Artifact Targets for normal build artifacts
+# ==============================================================================================
+#     ---------
+#     CLANG
+#     ---------
+#     <PKG>+cl,1.0-osx.amd64.DBG-{buildid}.lib.tar.gz
+#     <PKG>+cl,1.0-osx.amd64.REL-{buildid}.lib.tar.gz
+#                        {1}     {2}    {3}
+#
+'{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib.tar.gz' :
+  adir: ['{BIF_PRJ_ARTIFACTDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}']
+  bdir: ['{BIF_LOC_BUILDDIR}']
+  env:
+  needs:
+  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.bin'
+  tool: tar
+  options:
+  - '-czf'
+  - '{@}'
+  args:
+  - '{<}'
+
+
+# ==============================================================================================
+# CLANG dependency definitions
+# ==============================================================================================
+# CRUtil+cl,1.0-osx.amd64.DBG-{buildid}.lib
+'{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib':
+  env:
+    DEPS_VARIANT: '"{BIF_BUILD_HOST_PLATFORM}_{1}_{2}".lower()'
+    CLANG_OBJDIR: '{BIF_LOC_BUILDDIR}/cobj'
+    CLANG_INCDIR: 'include'
+    CFLAGS: '-std=gnu++17'
+  try:
+    # -----------------------------
+    - adir: '{BIF_LOC_BUILDDIR}'
+      bdir: '{CLANG_OBJDIR}'
+      needs: ['crstring.o']
+      byproducts: ['{CLANG_OBJDIR}']
+      tool: ar
+      options:
+      - 'rcs'
+      - '{@}'
+      args:
+      - '{<}'
+
+_.o:
+  adir: '{CLANG_OBJDIR}'
+  bdir: '{BIF_PRJ_SOURCEDIR}'
+  needs: [ '{1}.cpp' ]
+  uses: [ '@ClangDeps({1}_{DEPS_VARIANT}.d)' ]
+  steps:
+  - tool: echo
+    args: [ 'Compiling: {<}' ]
+  - tool: gcc
+    options: [ '{CFLAGS}', '-I', 'include', '-c', '-o', '{@}' ]
+    args: ['{#}']
+    silent: false
+
+_.d:
+  adir: '{BIF_PRJ_SOURCEDIR}/.deps'
+  bdir: '{BIF_PRJ_SOURCEDIR}'
+  needs: ['{1}.split("_")[0].append(".cpp")']
+  env:
+    CFLAGS: ['-MM','-MG']
+  steps:
+  - tool: echo
+    args: [ 'Generating dependencies for: {<}' ]
+  - tool: gitkeep
+    args: [ '{ADIR}' ]
+  - tool: gcc
+    options: ['-I', 'include', '-o', '{@}']
+    args: ['{CFLAGS}', '{<}']
+
+_.cpp:
+  adir: '{BIF_PRJ_SOURCEDIR}'
+
+_.c:
+  adir: '{BIF_PRJ_SOURCEDIR}'
+
