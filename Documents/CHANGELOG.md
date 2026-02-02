@@ -1,4 +1,44 @@
 ===============================================================================================
+# Rename bigint.h → bigint128.h and create bigint256.h
+
+February 02, 2026 :: 2:54 PM EST (UTC: 19:54)
+
+Renamed `bigint.h` to `bigint128.h` and created `bigint256.h` implementing a full
+256-bit unsigned integer (`uint256_t`) as `pair<uint128_t, uint128_t>`.
+
+1. **Rename bigint.h → bigint128.h**: Renamed the header, updated include guard to
+   `__BIGINT128_INC__`, removed the `uint256_dont_use_t` placeholder typedef.
+
+2. **Backward-compatibility shim**: Created thin `bigint.h` that `#include`s
+   `bigint128.h` — existing code continues to work unchanged.
+
+3. **bigint256.h**: Full `pair<uint128_t, uint128_t>` specialization with:
+   - Construction from integral, uint128_t, (hi128, lo128), decimal string, copy
+   - All arithmetic: +, -, *, /, % with carry/borrow propagation across 128-bit boundary
+   - Widening 128×128→256 multiply via 4 cross-products of 64-bit halves
+   - Division: fast path (128/128), short path (256/128 base-2^128 long division),
+     full path (256/256 binary shift-subtract)
+   - Bitwise, shift, comparison, logical operators
+   - String output: toString (decimal), toHexString (delegates to 128-bit halves),
+     toOctString (shift-and-mask), ostream << with format flags
+   - Utility: isZero, isOne, isLow, isPow2, getPow2, popcount, countl_zero, countr_zero
+   - Free-standing operators for T op uint256_t
+   - std::hash, std::numeric_limits (digits=256, digits10=77)
+   - `_u256` user-defined literal
+   - No endian-specific code (delegates to endian-safe 128-bit sub-objects)
+
+4. **Test suite**: 22 test cases with 203 assertions in `Test/test_bigint256.cpp`
+   covering construction, assignment, conversion, logical, comparison, bitwise,
+   shift, addition, subtraction, multiplication, division round-trips, convenience
+   functions, bit utilities, string output, ostream formatting, free-standing
+   operators, std::hash, std::numeric_limits, and user-defined literal.
+
+5. **Updated test include**: `test_bigint.cpp` now includes `bigint128.h` directly.
+
+6. **Documentation**: Updated README.md component table and examples, added 256-bit
+   section to CRUtil-Reference.md.
+
+===============================================================================================
 # Big-endian support for bigint.h
 
 February 02, 2026 :: 1:50 PM EST (UTC: 18:50)

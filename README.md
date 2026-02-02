@@ -8,7 +8,9 @@ safe string handling, and portable platform abstractions. Built with
 
 | Header | Description |
 |--------|-------------|
-| `bigint.h` | 128-bit unsigned integer with full operator suite, constexpr/noexcept support, hex/oct output, bit utilities, std::hash, std::numeric_limits, and `_u128` literal |
+| `bigint128.h` | 128-bit unsigned integer with full operator suite, constexpr/noexcept support, hex/oct output, bit utilities, std::hash, std::numeric_limits, and `_u128` literal |
+| `bigint256.h` | 256-bit unsigned integer built on `uint128_t` pairs, with full operator suite, string I/O, std::hash, std::numeric_limits, and `_u256` literal |
+| `bigint.h` | Backward-compatibility shim that includes `bigint128.h` |
 | `ainteger.h` | Thread-safe atomic 64-bit integer with CAS, get-and-set, and atomic clamping |
 | `crstring.h` | Safe C-string operations: snprintf, strncpy, trim, split, join with bounds checking |
 | `lstring.h` | Compile-time XOR string obfuscation -- plaintext never appears in the binary |
@@ -24,7 +26,7 @@ safe string handling, and portable platform abstractions. Built with
 ## Quick Start
 
 ```cpp
-#include "bigint.h"
+#include "bigint128.h"
 using namespace crunnable;
 
 uint128p_t a("340282366920938463463374607431768211455");  // 2^128 - 1
@@ -35,6 +37,20 @@ auto r = a % b;
 assert(q * b + r == a);
 
 std::cout << std::hex << std::showbase << q << std::endl;
+```
+
+For 256-bit arithmetic:
+
+```cpp
+#include "bigint256.h"
+using namespace crunnable;
+
+uint256_t x("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+uint256_t y(1000000000UL);
+
+auto q = x / y;
+auto r = x % y;
+assert(q * y + r == x);
 ```
 
 ## Documentation
@@ -57,9 +73,10 @@ c++ -std=gnu++17 -I Source/include -c Source/crstring.cpp -o crstring.o
 
 ## Testing
 
-Tests use [Catch2](https://github.com/catchorg/Catch2). The bigint suite has
-54 test cases with 306 assertions covering arithmetic, conversions, constexpr,
-noexcept, hex/oct output, bit utilities, std::hash, and std::numeric_limits.
+Tests use [Catch2](https://github.com/catchorg/Catch2). The bigint suites have
+78 test cases with 523 assertions covering arithmetic, conversions, constexpr,
+noexcept, hex/oct output, bit utilities, std::hash, and std::numeric_limits
+for both 128-bit and 256-bit integers.
 
 ## Project Structure
 

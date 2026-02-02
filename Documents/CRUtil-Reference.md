@@ -11,23 +11,24 @@ Built with [BuildItFast](https://github.com/pyvadura/BuildItFast) (`bif`).
 
 ## Table of Contents
 
-1. [128-bit Unsigned Integer (bigint.h)](#128-bit-unsigned-integer)
-2. [Atomic Integer (ainteger.h)](#atomic-integer)
-3. [Safe Strings (crstring.h)](#safe-strings)
-4. [String Obfuscation (lstring.h)](#string-obfuscation)
-5. [Timer (crtimer.h)](#timer)
-6. [Semaphore (semaphore.h)](#semaphore)
-7. [Condition Variable (condition.h)](#condition-variable)
-8. [Exception (crexception.h)](#exception)
-9. [Platform & Types (crtypes.h, endian.h, crlikely.h, needs.h)](#platform--types)
-10. [Building](#building)
-11. [Testing](#testing)
+1. [128-bit Unsigned Integer (bigint128.h)](#128-bit-unsigned-integer)
+2. [256-bit Unsigned Integer (bigint256.h)](#256-bit-unsigned-integer)
+3. [Atomic Integer (ainteger.h)](#atomic-integer)
+4. [Safe Strings (crstring.h)](#safe-strings)
+5. [String Obfuscation (lstring.h)](#string-obfuscation)
+6. [Timer (crtimer.h)](#timer)
+7. [Semaphore (semaphore.h)](#semaphore)
+8. [Condition Variable (condition.h)](#condition-variable)
+9. [Exception (crexception.h)](#exception)
+10. [Platform & Types (crtypes.h, endian.h, crlikely.h, needs.h)](#platform--types)
+11. [Building](#building)
+12. [Testing](#testing)
 
 ---
 
 ## 128-bit Unsigned Integer
 
-**Header:** `Source/include/bigint.h`
+**Header:** `Source/include/bigint128.h`
 
 Provides two implementations of a 128-bit unsigned integer, selectable at compile time:
 
@@ -41,7 +42,7 @@ Both types share the same public interface.
 ### Construction
 
 ```cpp
-#include "bigint.h"
+#include "bigint128.h"
 using namespace crunnable;
 
 uint128p_t a;                              // default (uninitialized)
@@ -215,6 +216,90 @@ The pair implementation uses a packed union with 8/16/32/64-bit array overlays f
 the multiplication and division algorithms. These algorithms index the arrays
 assuming little-endian byte order. A `static_assert` at compile time rejects
 big-endian platforms.
+
+---
+
+## 256-bit Unsigned Integer
+
+**Header:** `Source/include/bigint256.h`
+
+Provides a 256-bit unsigned integer as `pair<uint128_t, uint128_t>`. Includes
+`bigint128.h` automatically. All operations delegate to the 128-bit `m_hi`/`m_lo`
+sub-objects — no raw byte array overlays, no endian-specific code.
+
+| Type | Class | Description |
+|------|-------|-------------|
+| `uint256_t` | `pair<uint128_t, uint128_t>` | 256-bit unsigned integer |
+
+### Construction
+
+```cpp
+#include "bigint256.h"
+using namespace crunnable;
+
+uint256_t a;                                              // default
+uint256_t b(42UL);                                        // from integral
+uint256_t c(uint128_t(hi128), uint128_t(lo128));          // (hi, lo) halves
+uint256_t d("115792089237316195423570985008687907853269984665640564039457584007913129639935");
+uint256_t e(d);                                           // copy
+```
+
+### Arithmetic
+
+All standard operators: `+`, `-`, `*`, `/`, `%`, compound assignments, `++`, `--`,
+unary `+`/`-`. Division and modulus throw on divide-by-zero.
+
+```cpp
+uint256_t q = a / b;
+uint256_t r = a % b;
+assert(q * b + r == a);
+```
+
+### Bitwise, Shift, Comparison
+
+Same interface as the 128-bit type. Shifts split across the 128-bit boundary.
+
+### Named Accessors
+
+```cpp
+uint128_t lo = a.lo128();
+uint128_t hi = a.hi128();
+uint64_t  l  = a.lo64();   // lowest 64 bits
+uint64_t  h  = a.hi64();   // highest 64 bits
+```
+
+### String Output
+
+```cpp
+std::string s;
+a.toString(s);       // decimal
+a.toHexString(s);    // hex (delegates to 128-bit halves)
+a.toOctString(s);    // octal (shift-and-mask)
+
+std::cout << std::hex << std::showbase << a;  // "0x..."
+```
+
+### Utility Methods
+
+Same interface as 128-bit: `isZero()`, `isOne()`, `isLow()`, `isPow2()`,
+`getPow2()`, `popcount()`, `countl_zero()`, `countr_zero()`.
+
+### Standard Library Integration
+
+`std::hash<uint256_t>` and `std::numeric_limits<uint256_t>` (digits=256,
+digits10=77, max_digits10=78).
+
+### User-defined Literal
+
+```cpp
+using namespace crunnable::literals;
+auto big = "115792089237316195423570985008687907853269984665640564039457584007913129639935"_u256;
+```
+
+### Free-standing Operators
+
+All comparison, compound assignment, and binary operators have `T op uint256_t`
+free-standing versions for integral types.
 
 ---
 
