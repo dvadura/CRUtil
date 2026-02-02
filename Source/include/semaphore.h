@@ -112,7 +112,7 @@ namespace crutil {
       /// cv(void* cond): Called prior to calling pthread_cond_wait in Conditional
       ///                 the mutex is held when this happens
       /// --------------------------------------------------------------------------------------
-      inline void cv(void* cond) {
+      inline void cv(void* /*cond*/) {
 #if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
          __sem_m_depth -= 1;
 #endif
@@ -122,7 +122,7 @@ namespace crutil {
       /// cp(void* cond): Called prior to calling pthread_cond_wait in Conditional
       ///                 the mutex is held when this happens
       /// --------------------------------------------------------------------------------------
-      inline void cp(void* cond) {
+      inline void cp(void* /*cond*/) {
 #if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
          __sem_m_depth += 1;
 #endif
@@ -301,8 +301,8 @@ namespace crutil {
                CRX_THROW_CHK(result, msg, maptype(type), result, Semaphore::maperr(result), this, __sem_m_depth, tid, __sem_m_owner, m_where);
             }
 #else
-            const char *msg="acquire semaphore, type=%s, err=%d(%s), owner=%d";
 #if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
+            const char *msg="acquire semaphore, type=%s, err=%d(%s), owner=%d";
             CRX_THROW_CHK(result, msg, maptype(type), result, Semaphore::maperr(result), __sem_m_owner);
 #endif
 #endif

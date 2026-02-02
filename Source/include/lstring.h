@@ -69,7 +69,7 @@ namespace crutil {
       constexpr Obfuscate() = default;
 
       constexpr char operator() (const char c, const size_t i) const {
-         return c ^ ob[i & 0xff];
+         return static_cast<char>(c ^ ob[i & 0xff]);
       }
 
       template <std::size_t N>

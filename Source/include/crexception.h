@@ -89,8 +89,8 @@ using namespace std;
 #define CRX_CAPTURE_CATCH(STR,CRX) {\
    char pbuf[8];\
    char tbuf[8];\
-   sprintf(pbuf,"%u",getpid());\
-   sprintf(tbuf,"%u",CRX_GETTID());\
+   snprintf(pbuf,sizeof(pbuf),"%u",getpid());\
+   snprintf(tbuf,sizeof(tbuf),"%u",CRX_GETTID());\
    STR += "\nCRException Caught: ";\
    if (CRX.isStaticOnly() == false) {\
       STR += "m_pid(";\
@@ -112,9 +112,9 @@ using namespace std;
 #define CRX_LOG_CATCH(L,CRX)         {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); (L)->log(L_ERROR, 1, "CRX: Capture Exception --------:\n%s.", __crx_out.c_str());}
 
 #ifdef DEBUG
-#define CRX_REPORT_CATCH(FD,CRX)     {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); fprintf(FD,"\n-------------------\n"); fprintf(FD, __crx_out.c_str()); fprintf(FD,"\n\n");}
+#define CRX_REPORT_CATCH(FD,CRX)     {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); fprintf(FD,"\n-------------------\n"); fprintf(FD, "%s", __crx_out.c_str()); fprintf(FD,"\n\n");}
 #else
-#define CRX_REPORT_CATCH(FD,CRX)     {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); fprintf(FD, __crx_out.c_str());}
+#define CRX_REPORT_CATCH(FD,CRX)     {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); fprintf(FD, "%s", __crx_out.c_str());}
 #endif
 
 #define CRX_STACKTRACE(FD,ERR,RETHROW,MSG,...)  {try { CRX_THROW_ERR(ERR,MSG,## __VA_ARGS__); } catch (CRException& e) { CRX_REPORT_CATCH(FD,e); usleep(200); if(RETHROW && CRException::isThreadCanceled(CRX_GETTID()) == false) {throw;}}}
@@ -128,7 +128,7 @@ namespace crutil {
       const int   m_errnumber;
       const char *m_filename;
       const char *m_funcname;
-      const int   m_linenumber;
+      const unsigned int m_linenumber;
       void       *m_symbols[MAX_BACK_TRACE_SYMBOLS];
       int         m_nums;
       string      m_message;
@@ -275,19 +275,33 @@ namespace crutil {
 
 
 
-      /// Default constructor.
-      CRException(const char *file, const unsigned int line, const int err, const char *func, const string& msg...)
+      /// Constructor accepting a pre-formatted string message (no variadic args).
+      CRException(const char *file, const unsigned int line, const int err, const char *func, const string& msg)
          : runtime_error(""), m_errnumber(err), m_filename(file), m_funcname(func),  m_linenumber(line),  m_staticonly(false)
       {
 #if defined(_GNU_SOURCE)
 #if !defined(ANDROID)
          m_nums = backtrace(m_symbols, MAX_BACK_TRACE_SYMBOLS);
 #endif
-         va_list ap;
+         m_message = msg;
+         m_errmsg.clear();
 
-         va_start(ap, msg);
-         initialize(msg.c_str(), ap);
-         va_end(ap);
+         if (m_errnumber != -1) {
+            char tmp[64];
+            snprintf(tmp, sizeof(tmp), ", err=%d", m_errnumber);
+            m_message += tmp;
+         }
+
+         if (likely(m_errnumber > 0)) {
+            char buf[2048];
+            if (strerror_r(m_errnumber, buf, sizeof(buf)-1) == 0) {
+               buf[sizeof(buf)-1] = '\0';
+               m_errmsg = buf;
+            }
+         }
+
+         m_pid = getpid();
+         m_tid = CRX_GETTID();
 #endif
       }
 
@@ -312,11 +326,11 @@ namespace crutil {
          return m_filename;
       }
       
-      virtual const int geterrno() const {
+      virtual int geterrno() const {
          return m_errnumber;
       }
 
-      virtual const int line() const {
+      virtual unsigned int line() const {
          return m_linenumber;
       }
 

@@ -14,7 +14,6 @@ static const char *MAX256 = "115792089237316195423570985008687907853269984665640
 // =============================================================================
 
 TEST_CASE("256-bit construction operations", "[bigint256][construction]") {
-   uint256_t a;
    uint256_t b(42UL);
    uint256_t c(uint128_t(1UL), uint128_t(0UL));  // 1 << 128
    uint256_t d(MAX256);

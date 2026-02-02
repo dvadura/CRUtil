@@ -42,6 +42,12 @@ namespace crutil {
          precision = tm.precision;
       }
 
+      crts& operator=(const struct crts& tm) {
+         t = tm.t;
+         precision = tm.precision;
+         return *this;
+      }
+
       crts(const ts_t& tm, uint64_t offset=0L) {
          precision = NS_IN_ONE_SEC;
          t.ts = tm;
@@ -174,15 +180,15 @@ namespace crutil {
          return result;
       }
 
-      inline int udelay(uint64_t target, struct crts* rem=NULL) {
+      inline int udelay(uint64_t target, struct crts* /*rem*/=NULL) {
          return ndelay(target*1000);
       }
 
-      inline int mdelay(uint64_t target, struct crts* rem=NULL) {
+      inline int mdelay(uint64_t target, struct crts* /*rem*/=NULL) {
          return ndelay(target*1000000);
       }
 
-      inline int sdelay(uint64_t target, struct crts* rem=NULL) {
+      inline int sdelay(uint64_t target, struct crts* /*rem*/=NULL) {
          return ndelay(target*1000000000);
       }
 

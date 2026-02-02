@@ -1,4 +1,41 @@
 ===============================================================================================
+# Fix compiler warnings in headers and tests
+
+February 02, 2026 :: 05:55 PM EST (UTC: 17:55 UTC)
+
+Fixed all "potentially dangerous" and "code quality" warnings reported by
+`-Wall -Wextra -Wpedantic -Wshadow -Wconversion`. All 966 assertions in
+164 test cases continue to pass.
+
+1. **crexception.h** — Fixed undefined behavior: replaced the `const string&`
+   variadic constructor (UB from `va_start` on a reference) with a non-variadic
+   overload that sets fields directly. Removed meaningless `const` on `int`
+   return types for `geterrno()` and `line()`. Changed `m_linenumber` from
+   `int` to `unsigned int` to match the constructor parameter and eliminate
+   sign-conversion warnings. Replaced `sprintf` with `snprintf` in
+   `CRX_CAPTURE_CATCH` macro. Fixed format-security in `CRX_REPORT_CATCH`
+   (`fprintf(FD, "%s", ...)` instead of `fprintf(FD, str.c_str())`).
+
+2. **condition.h** — Fixed `%lu` format specifiers to `%llu` with explicit
+   `(unsigned long long)` casts for `uint64_t` arguments in `CO_DEBUG` calls.
+
+3. **crtimer.h** — Added explicit copy assignment operator to `crts` to
+   suppress `-Wdeprecated-copy`. Commented out unused `rem` parameter names
+   in `udelay`, `mdelay`, `sdelay`.
+
+4. **semaphore.h** — Commented out unused `cond` parameter names in `cv()`
+   and `cp()`. Moved `msg` declaration inside the `_GNU_SOURCE` `#if` block
+   in `P()` to avoid unused-variable warning on macOS.
+
+5. **lstring.h** — Added `static_cast<char>` to the XOR result in
+   `Obfuscate::operator()` to suppress implicit int-to-char conversion warning.
+
+6. **test_bigint256.cpp** — Removed unused variable `a` in construction test.
+
+7. **test_crexception.cpp** — Changed `long sz` to `size_t sz` with cast
+   from `ftell()` to eliminate sign-conversion warnings.
+
+===============================================================================================
 # Document CRException macros, Semaphore DEBUG/SEMTRACE, and Condition COND_DEBUG
 
 February 02, 2026 :: 04:42 PM EST (UTC: 21:42 UTC)

@@ -139,8 +139,8 @@ namespace crutil {
 
          ++m_waiters;
 #if (defined(_GNU_SOURCE) && !defined(ANDROID))
-         CO_DEBUG("COND(%d)[%s,%c]: Wait (m_fired=%d,m_waiters=%d,to==%lu)\n", CRX_GETTID(),
-                  m_sem.getVerbose(),(m_broadcast?'B':'N'),m_fired,m_waiters,nsec_timeout);
+         CO_DEBUG("COND(%d)[%s,%c]: Wait (m_fired=%d,m_waiters=%d,to==%llu)\n", CRX_GETTID(),
+                  m_sem.getVerbose(),(m_broadcast?'B':'N'),m_fired,m_waiters,(unsigned long long)nsec_timeout);
 #endif
 
          m_sem.cv(this);
@@ -292,8 +292,8 @@ namespace crutil {
          pthread_setspecific(Condition::CONDKEY,this);
          pthread_cleanup_push(Condition::threadCancel, this);
 
-         CO_DEBUG("COND(%d)[%s,%c]: >>> waitFor(t=%lu) <m_fired=%d,m_waiters=%d>\n", CRX_GETTID(),
-                  m_sem.getVerbose(),(m_broadcast?'B':'N'),nsec_timeout,m_fired,m_waiters);
+         CO_DEBUG("COND(%d)[%s,%c]: >>> waitFor(t=%llu) <m_fired=%d,m_waiters=%d>\n", CRX_GETTID(),
+                  m_sem.getVerbose(),(m_broadcast?'B':'N'),(unsigned long long)nsec_timeout,m_fired,m_waiters);
 #endif
 
          if (unlikely(m_broadcast == true)) {

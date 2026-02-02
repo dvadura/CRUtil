@@ -192,7 +192,7 @@ TEST_CASE("CRX_REPORT_CATCH writes exception to file descriptor", "[crexception]
       CRX_REPORT_CATCH(tmp, e);
 
       fseek(tmp, 0, SEEK_END);
-      long sz = ftell(tmp);
+      size_t sz = (size_t)ftell(tmp);
       REQUIRE(sz > 0);
       fseek(tmp, 0, SEEK_SET);
 
@@ -222,7 +222,7 @@ TEST_CASE("CRX_STACKTRACE without rethrow does not propagate", "[crexception]") 
    REQUIRE(!caught);
 
    fseek(tmp, 0, SEEK_END);
-   long sz = ftell(tmp);
+   size_t sz = (size_t)ftell(tmp);
    REQUIRE(sz > 0);
    fseek(tmp, 0, SEEK_SET);
 
@@ -279,7 +279,7 @@ TEST_CASE("CRX_REPORT_TRACE without rethrow does not propagate", "[crexception]"
    REQUIRE(!caught);
 
    fseek(tmp, 0, SEEK_END);
-   long sz = ftell(tmp);
+   size_t sz = (size_t)ftell(tmp);
    fseek(tmp, 0, SEEK_SET);
 
    string content(sz, '\0');
