@@ -5,16 +5,45 @@
  * \details Pretty straight forward. Subclasses can overwrite what() to provide
  *          custom output of the exception m_messages.
  *
- *          In order to get stack traces you need to compile with debug symbols
- *          and link with -rdynamic (on gcc).
+ *          In order to get stack traces you need to compile with debug symbols.
+ *          On Linux, link with -rdynamic so backtrace_symbols can resolve names.
+ *          On macOS, no special linker flag is needed.
  *
- *          g++ -std=c++11 -DDEBUG=1 -Og t.cpp -rdynamic
+ *          Linux: g++ -std=gnu++17 -DDEBUG=1 -Og t.cpp -rdynamic
+ *          macOS: g++ -std=gnu++17 -D_GNU_SOURCE -DDEBUG=1 -Og t.cpp
+ *
+ * \par Macro Quick Reference
+ *
+ *          **Throwing:**
+ *          - CRX_THROW(MSG, ...)              -- throw with errno=-1
+ *          - CRX_THROW_ERR(ERR, MSG, ...)     -- throw with explicit errno
+ *          - CRX_THROW_CHK(ERR, MSG, ...)     -- throw unless thread is canceled
+ *          - CRX_TIF(EXPR, MSG, ...)          -- throw if EXPR is true
+ *          - CRX_TUNLESS(EXPR, MSG, ...)      -- throw if EXPR is false
+ *          - CRX_TIF_ERR(EXPR, ERR, MSG, ...) -- throw with errno if EXPR is true
+ *          - CRX_TIFNULL(PTR)                 -- throw on NULL, otherwise return PTR
+ *
+ *          **Catching / Reporting:**
+ *          - CRX_CAPTURE_CATCH(STR, CRX)      -- append catch summary to a std::string
+ *          - CRX_REPORT_CATCH(FD, CRX)        -- write catch summary to FILE* fd
+ *
+ *          **Stack Traces:**
+ *          - CRX_STACKTRACE(FD, ERR, RETHROW, MSG, ...)   -- capture trace to FILE*,
+ *              optionally rethrow (RETHROW=true/false)
+ *          - CRX_REPORT_TRACE(FD, ERR, RETHROW, MSG, ...) -- alias for CRX_STACKTRACE
+ *
+ *          **Thread Cancellation:**
+ *          - CRException::notifyCancel(tid)  -- mark a thread as canceled
+ *          - CRException::clearCancel(tid)   -- clear cancellation for a thread
+ *          - CRX_THROW_CHK and CRX_STACKTRACE(RETHROW=true) suppress throws for
+ *            threads whose tid is NOT in the cancel map (i.e. other threads yield
+ *            while the canceled thread is shutting down).
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
  * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- * 
- * \license You can obtain and redistribute or modify this program under the 
+ *
+ * \license You can obtain and redistribute or modify this program under the
  *          terms of the Software License Agreement Provided in the file:
  *          <distribution-root>/LICENSE.txt
  */
@@ -30,6 +59,7 @@ using namespace std;
 
 #if (defined(_GNU_SOURCE) && !defined(ANDROID))
 #include <execinfo.h>
+#include <cxxabi.h>
 #endif
 
 #include <exception>
@@ -80,7 +110,6 @@ using namespace std;
 }
 
 #define CRX_LOG_CATCH(L,CRX)         {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); (L)->log(L_ERROR, 1, "CRX: Capture Exception --------:\n%s.", __crx_out.c_str());}
-//#define CRX_LOG_CATCH(L,CRX)       {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); fprintf(stderr, "CRX: Capture Exception --------:\n%s\n", __crx_out.c_str());}
 
 #ifdef DEBUG
 #define CRX_REPORT_CATCH(FD,CRX)     {string __crx_out; CRX_CAPTURE_CATCH(__crx_out, CRX); fprintf(FD,"\n-------------------\n"); fprintf(FD, __crx_out.c_str()); fprintf(FD,"\n\n");}
@@ -111,6 +140,54 @@ namespace crutil {
       /// map containing which thread_id's are canceled
       static std::map<pid_t,bool> s_tmap;
       static pthread_mutex_t      s_tlock;
+
+#if (defined(_GNU_SOURCE) && !defined(ANDROID))
+      /// Demangle a single backtrace symbol string, returning a readable version.
+      static std::string demangle(const char* sym) {
+         std::string result(sym);
+         std::string mangled;
+         size_t mpos = std::string::npos;
+         size_t mlen = 0;
+
+#if defined(__APPLE__)
+         // macOS format: "N  binary  0xaddr _ZMangled + offset"
+         // The mangled name starts with _Z and is followed by ' '
+         size_t zpos = result.find(" _Z");
+         if (zpos != std::string::npos) {
+            zpos += 1; // skip the leading space
+            size_t end = result.find(' ', zpos);
+            if (end == std::string::npos) end = result.size();
+            mangled = result.substr(zpos, end - zpos);
+            mpos = zpos;
+            mlen = end - zpos;
+         }
+#else
+         // Linux format: "./binary(_ZMangled+0xoffset) [0xaddr]"
+         size_t lparen = result.find('(');
+         if (lparen != std::string::npos) {
+            size_t plus = result.find('+', lparen);
+            size_t rparen = result.find(')', lparen);
+            size_t end = (plus != std::string::npos && plus < rparen) ? plus : rparen;
+            if (end != std::string::npos && end > lparen + 1) {
+               mangled = result.substr(lparen + 1, end - lparen - 1);
+               mpos = lparen + 1;
+               mlen = end - lparen - 1;
+            }
+         }
+#endif
+
+         if (mpos != std::string::npos && !mangled.empty()) {
+            int status = -1;
+            char* demangled = abi::__cxa_demangle(mangled.c_str(), nullptr, nullptr, &status);
+            if (status == 0 && demangled != nullptr) {
+               result.replace(mpos, mlen, demangled);
+               free(demangled);
+            }
+         }
+
+         return result;
+      }
+#endif
 
    protected:
 #if 0
@@ -274,7 +351,7 @@ namespace crutil {
             if (syms != NULL) {
                output << "\n         Calltrace: ";
                for (int i=1; i<ex.m_nums; ++i) {
-                  output << syms[i];
+                  output << demangle(syms[i]);
                   if (i < ex.m_nums-1) {
                      output << "\n                    ";
                   }

@@ -1,5 +1,7 @@
 /** \brief  Backward-compatibility shim -- includes bigint128.h
  *
+ * \note    Requires C++17 or later.  See bigint128.h for normative compile flags.
+ *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
  * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2016 by Dennis Vadura, All rights reserved.

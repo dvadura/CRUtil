@@ -7,12 +7,24 @@
  *          value.  The value is used to set a relative timeout from now and attempts
  *          to compensate for the cost of setting up the waitFor, so sub 5ns timeouts
  *          are meaningless.
- *         
+ *
+ * \par     COND_DEBUG
+ *
+ *          When COND_DEBUG is defined (it is defined by default in the header),
+ *          each Condition instance gains a m_debug flag controllable via
+ *          setDebug(true).  When enabled, CO_DEBUG() calls emit detailed
+ *          fprintf traces to stderr showing thread id, broadcast/normal mode,
+ *          fired count, waiter count, and timeout for every waitFor/raise
+ *          cycle.  This is particularly useful for diagnosing missed signals,
+ *          spurious wakeups, and ordering issues in multi-threaded code.
+ *          Set dflag=true in the constructor, or call setDebug(true) at
+ *          runtime to activate.
+ *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
  * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- * 
- * \license You can obtain and redistribute or modify this program under the 
+ *
+ * \license You can obtain and redistribute or modify this program under the
  *          terms of the Software License Agreement Provided in the file:
  *          <distribution-root>/LICENSE.txt
  */

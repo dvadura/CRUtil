@@ -6,12 +6,31 @@
  *          freeing people from the mundane task of typing all the mutex
  *          code.
  *
- *         
+ * \par     DEBUG vs Release Behavior
+ *
+ *          In DEBUG builds, use the PP/VV macros instead of calling P()/V()
+ *          directly.  PP and VV automatically capture __FILE__, __METHOD_NAME__,
+ *          and __LINE__ so that error messages and stack traces report the
+ *          exact call site.  In release builds PP/VV expand to plain P()/V().
+ *
+ *          DEBUG builds also track the previous lock owner, detect use-after-
+ *          destroy, and record a full acquisition history string (m_where) that
+ *          is included in exception messages.
+ *
+ * \par     SEMTRACE
+ *
+ *          When compiled with both -DDEBUG and -DSEMTRACE, every PP/VV call
+ *          is recorded in a global trace ring via semtraceadd().  Each entry
+ *          captures the timestamp, thread id, semaphore pointer, P-or-V flag,
+ *          cost in nanoseconds, and call-site string.  Call semtracedump(FILE*)
+ *          to dump the collected trace -- invaluable for diagnosing lock
+ *          contention and ordering issues in multi-threaded code.
+ *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
  * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- * 
- * \license You can obtain and redistribute or modify this program under the 
+ *
+ * \license You can obtain and redistribute or modify this program under the
  *          terms of the Software License Agreement Provided in the file:
  *          <distribution-root>/LICENSE.txt
  */

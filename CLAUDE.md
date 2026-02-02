@@ -13,10 +13,10 @@ To run the tests manually:
 
 2. Compile the test runner from the project root:
    ```
-   cd Test && g++ -std=gnu++17 -I ../Source/include -o test_runner \
+   cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -I ../Source/include -o test_runner \
      test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
-     test_condition.cpp test_crstring.cpp test_crtimer.cpp test_lstring.cpp \
-     ../Source/crstring.cpp -lpthread
+     test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
+     test_lstring.cpp ../Source/crstring.cpp -lpthread
    ```
 
 3. Run the tests:

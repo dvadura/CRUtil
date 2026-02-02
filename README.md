@@ -1,6 +1,6 @@
 # CRUtil
 
-A modern C++17 utility library providing 128-bit arithmetic, concurrency primitives,
+A modern C++17 utility library providing 128-bit and 256-bit arithmetic, concurrency primitives,
 safe string handling, and portable platform abstractions. Built with
 [BuildItFast](https://github.com/pyvadura/BuildItFast).
 
@@ -15,9 +15,9 @@ safe string handling, and portable platform abstractions. Built with
 | `crstring.h` | Safe C-string operations: snprintf, strncpy, trim, split, join with bounds checking |
 | `lstring.h` | Compile-time XOR string obfuscation -- plaintext never appears in the binary |
 | `crtimer.h` | Nanosecond-precision timer for measurement, sleeping, interval delays, and date formatting |
-| `semaphore.h` | P()/V() semaphore wrapper over pthread_mutex (recursive and non-recursive) |
-| `condition.h` | Condition variable with nanosecond-resolution timeouts, built on Semaphore |
-| `crexception.h` | Exception class with file/line/function tracking and optional stack traces |
+| `semaphore.h` | P()/V() semaphore wrapper over pthread_mutex; PP/VV macros capture call-site in DEBUG; SEMTRACE ring for lock contention analysis |
+| `condition.h` | Condition variable with nanosecond-resolution timeouts; COND_DEBUG traces waitFor/raise cycles to stderr |
+| `crexception.h` | Exception class with file/line/function tracking, demangled stack traces, and a rich macro API for throwing, catching, and reporting |
 | `crtypes.h` | Common type definitions, time constants, platform-specific event headers |
 | `endian.h` | Portable endianness detection (Linux, macOS, BSD, Windows) |
 | `needs.h` | SFINAE template constraint helpers (`NEEDS`/`REQUIRES` macros) |
@@ -53,6 +53,99 @@ auto r = x % y;
 assert(q * y + r == x);
 ```
 
+## CRException -- Throwing, Catching, and Stack Traces
+
+CRException provides a set of macros that automatically capture file, line, and
+function name at every throw/catch site.  Stack traces are demangled into
+readable C++ names.
+
+### Throwing
+
+```cpp
+#include "crexception.h"
+using namespace crutil;
+
+CRX_THROW("something went wrong: %s", detail);       // errno = -1
+CRX_THROW_ERR(ENOENT, "file %s not found", path);    // explicit errno
+CRX_TIF(ptr == nullptr, "unexpected null");           // throw if true
+CRX_TUNLESS(count > 0, "count must be positive");     // throw if false
+CRX_TIF_ERR(fd < 0, errno, "open failed: %s", path); // throw with errno if true
+int* p = CRX_TIFNULL(getPointer());                   // throw on NULL, else return ptr
+```
+
+### Catching and Reporting
+
+```cpp
+try {
+   doWork();
+} catch (CRException& e) {
+   // Append a full catch summary (pid, tid, file:line, raised detail) to a string
+   string report;
+   CRX_CAPTURE_CATCH(report, e);
+
+   // Or write directly to a FILE*
+   CRX_REPORT_CATCH(stderr, e);
+}
+```
+
+### Stack Traces
+
+```cpp
+// Capture a stack trace to stderr, do not rethrow
+CRX_STACKTRACE(stderr, -1, false, "checkpoint reached: state=%d", state);
+
+// Capture a stack trace and rethrow the exception
+CRX_STACKTRACE(stderr, errno, true, "operation failed: %s", msg);
+
+// CRX_REPORT_TRACE is an alias for CRX_STACKTRACE
+CRX_REPORT_TRACE(stderr, -1, false, "diagnostic trace");
+```
+
+### CRException and Thread Cancellation
+
+`CRX_THROW_CHK` and the rethrow path of `CRX_STACKTRACE` consult an internal
+cancel map.  Call `CRException::notifyCancel(tid)` to mark a thread as
+canceled; subsequent throws from **other** threads are suppressed while the
+canceled thread shuts down.  Call `CRException::clearCancel(tid)` when the
+thread that trows is joined.
+
+## Semaphore -- DEBUG and SEMTRACE Modes
+
+In **release** builds, `PP` and `VV` expand to plain `P()` / `V()` calls.
+
+In **DEBUG** builds (`-DDEBUG`), `PP` and `VV` automatically capture
+`__FILE__`, `__METHOD_NAME__`, and `__LINE__`.  Error messages and stack traces
+then report the exact lock/unlock call site, the previous owner thread, and a
+full acquisition history.  Use-after-destroy is also detected.
+
+When compiled with both `-DDEBUG` and `-DSEMTRACE`, every `PP`/`VV` call is
+recorded in a global trace ring.  Each entry stores:
+
+- timestamp (nanosecond precision)
+- thread id
+- semaphore pointer
+- P or V flag
+- cost in nanoseconds
+- call-site string
+
+Call `semtracedump(stderr)` to dump the ring -- invaluable for diagnosing lock
+contention and ordering issues.
+
+## Condition -- COND_DEBUG Mode
+
+`COND_DEBUG` is defined by default in `condition.h`.  Each `Condition` instance
+has a debug flag (off by default) that can be enabled via the constructor's
+`dflag` parameter or by calling `setDebug(true)` at runtime.  When active,
+`CO_DEBUG` traces are emitted to stderr showing:
+
+- thread id
+- broadcast vs. normal mode
+- fired count and waiter count
+- timeout value
+
+This makes it straightforward to diagnose missed signals, spurious wakeups, and
+ordering problems in multi-threaded code.
+
 ## Documentation
 
 - **[Library Reference](Documents/CRUtil-Reference.md)** -- detailed API documentation for all components
@@ -74,17 +167,18 @@ c++ -std=gnu++17 -I Source/include -c Source/crstring.cpp -o crstring.o
 ## Testing
 
 Tests use [Catch2](https://github.com/catchorg/Catch2) (v2.13.0, single-header).
-The full suite has 132 test cases with 907 assertions covering arithmetic,
+The full suite has 164 test cases with 966 assertions covering arithmetic,
 conversions, constexpr, noexcept, hex/oct output, bit utilities, std::hash,
-std::numeric_limits, string operations, timers, conditions, and obfuscation.
+std::numeric_limits, string operations, timers, conditions, exceptions, and
+obfuscation.
 
 ```bash
 bif do 0    # build the debug library first
 
-cd Test && g++ -std=gnu++17 -I ../Source/include -o test_runner \
+cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -I ../Source/include -o test_runner \
   test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
-  test_condition.cpp test_crstring.cpp test_crtimer.cpp test_lstring.cpp \
-  ../Source/crstring.cpp -lpthread
+  test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
+  test_lstring.cpp ../Source/crstring.cpp -lpthread
 
 ./test_runner            # run all tests
 ./test_runner "[bigint256]"  # run a specific tag

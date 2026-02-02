@@ -1,4 +1,78 @@
 ===============================================================================================
+# Document CRException macros, Semaphore DEBUG/SEMTRACE, and Condition COND_DEBUG
+
+February 02, 2026 :: 04:42 PM EST (UTC: 21:42 UTC)
+
+Expanded header comments and README to document the debugging features of the
+three core concurrency/exception headers.
+
+1. **crexception.h**: Added a "Macro Quick Reference" section to the Doxygen
+   header listing all throw, catch, report, stacktrace, and thread-cancellation
+   macros with one-line descriptions.
+
+2. **semaphore.h**: Added "DEBUG vs Release Behavior" and "SEMTRACE" sections
+   explaining PP/VV call-site capture, use-after-destroy detection, acquisition
+   history tracking, and the global trace ring dumped by semtracedump().
+
+3. **condition.h**: Added "COND_DEBUG" section explaining the per-instance debug
+   flag, CO_DEBUG traces, and what information they emit (tid, mode, fired/waiter
+   counts, timeout).
+
+4. **README.md**: Added three new feature sections (CRException, Semaphore,
+   Condition) with usage examples and compile-flag guidance.  Updated test count
+   to 164 cases / 966 assertions.  Updated compile command with -D_GNU_SOURCE
+   and test_crexception.cpp.
+
+===============================================================================================
+# Add CRException test suite
+
+February 02, 2026 :: 04:25 PM EST (UTC: 21:25 UTC)
+
+Added `Test/test_crexception.cpp` with 32 test cases covering the CRException
+catch/report/stacktrace macros and class behavior.
+
+1. **Throw macros**: `CRX_THROW`, `CRX_THROW_ERR`, `CRX_TIF`, `CRX_TUNLESS`,
+   `CRX_TIF_ERR`, `CRX_TIFNULL` — verified throw/no-throw and errno propagation.
+
+2. **Accessor coverage**: `file()`, `line()`, `what()`, `errmsg()`, `geterrno()`,
+   `setStaticOnly()`/`isStaticOnly()`.
+
+3. **Catch macros**: `CRX_CAPTURE_CATCH` string building (including pid/tid fields
+   and staticOnly suppression), `CRX_REPORT_CATCH` file output.
+
+4. **Stacktrace macros**: `CRX_STACKTRACE` and `CRX_REPORT_TRACE` with both
+   rethrow=true and rethrow=false, plus custom errno forwarding.
+
+5. **Thread cancellation**: `CRX_THROW_CHK` and `CRX_STACKTRACE` behavior with
+   `notifyCancel`/`clearCancel` — confirmed that the canceled thread itself still
+   throws (suppression applies to other threads via `isThreadCanceled` semantics).
+
+6. **Output operators**: `operator<<` (ostream ref and pointer, including NULL),
+   `operator+=`, `toString()`, demangled calltrace verification.
+
+7. **Build command updated**: Added `-D_GNU_SOURCE` flag and `test_crexception.cpp`
+   to the compile line in `CLAUDE.md`.
+
+===============================================================================================
+# Add symbol demangling to CRException stack traces
+
+February 02, 2026 :: 04:07 PM EST (UTC: 21:07 UTC)
+
+Added automatic C++ symbol demangling to `CRException` stack traces so that
+backtraces display human-readable function names instead of raw mangled symbols.
+
+1. **Include `<cxxabi.h>`**: Added inside the existing `_GNU_SOURCE && !ANDROID`
+   guard block alongside `<execinfo.h>`.
+
+2. **Private static `demangle()` helper**: Parses a raw backtrace symbol string,
+   extracts the mangled name (handles both macOS and Linux formats), calls
+   `abi::__cxa_demangle()`, and replaces the mangled name in the output. Falls
+   back to the original string if demangling fails.
+
+3. **Updated `operator<<`**: The calltrace loop now passes each symbol through
+   `demangle()` before writing to the output stream.
+
+===============================================================================================
 # Rename bigint.h → bigint128.h and create bigint256.h
 
 February 02, 2026 :: 2:54 PM EST (UTC: 19:54)

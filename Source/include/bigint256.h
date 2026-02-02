@@ -1,5 +1,7 @@
 /** \brief  A 256-bit unsigned integer built on pair<uint128_t, uint128_t>
  *
+ * \note    Requires C++17 or later.  See bigint128.h for normative compile flags.
+ *
  * \details Provides uint256_t as a specialization of pair<uint128_t, uint128_t>.
  *          All operations delegate to the 128-bit m_hi/m_lo sub-objects, which
  *          are already endian-safe via the W* macros in bigint128.h.  No raw

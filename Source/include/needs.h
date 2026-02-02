@@ -1,8 +1,8 @@
 /** \class   C++ template needs manifests
  *  
- *  \brief   A set of typedefs to make it easier to constrain c++11 templates
+ *  \brief   A set of typedefs to make it easier to constrain C++ templates
  *
- *  \details This is a convenient wrapper on the lovely and cryptic C++11 type_traits
+ *  \details This is a convenient wrapper on the lovely and cryptic type_traits
  *           and friends. It's based on discussion in:
  *           
  *           http://pfultz2.com/blog/2014/11/08/non-template-constraints/

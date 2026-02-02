@@ -16,13 +16,11 @@
  *          are fully supported.
  *
  *          NOTE: This library relies on SFINAE and uses type traits to get the right method or
- *                class instance. To compile make sure you have c++11x support.
+ *                class instance. Requires C++17 or later.
  *
- *                g++ -std=c++11 -O4 -g x.cpp ../../objs/crstring.o -lrt
+ *                g++ -std=gnu++17 -O3 -g x.cpp ../../objs/crstring.o -lrt
  *
- *                use -lrt if you are using crtimer.h to measure things.
- *
- *          NOTE: Probably missing some conversions for some expression uses. Will add over time.
+ *                use -lrt on Linux if you are using crtimer.h to measure things.
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
  * \see     http://www.vadura.eu/crutil
