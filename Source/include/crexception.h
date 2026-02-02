@@ -11,7 +11,7 @@
  *          g++ -std=c++11 -DDEBUG=1 -Og t.cpp -rdynamic
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crunnable
+ * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
  * 
  * \license You can obtain and redistribute or modify this program under the 
@@ -93,7 +93,7 @@ using namespace std;
 #define CRX_REPORT_TRACE(FD,ERR,RETHROW,MSG,...)  CRX_STACKTRACE(FD,ERR,RETHROW,MSG,## __VA_ARGS__)
 #define CRX_LOG_TRACE(L,ERR,RETHROW,MSG,...)  {try { CRX_THROW_ERR(ERR,MSG,## __VA_ARGS__); } catch (CRException& e) { CRX_LOG_CATCH(L,e); usleep(200); if(RETHROW && CRException::isThreadCanceled(CRX_GETTID()) == false) {throw;}}}
 
-namespace crunnable {
+namespace crutil {
    class CRException : public std::runtime_error {
    private:
       const int   m_errnumber;

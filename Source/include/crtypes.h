@@ -3,7 +3,7 @@
  * \brief   A common location to define types used by CRunnable.
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crunnable
+ * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
  * 
  * \license You can obtain and redistribute or modify this program under the 

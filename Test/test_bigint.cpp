@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 using namespace std;
-using namespace crunnable;
+using namespace crutil;
 
 // =============================================================================
 // Pair-based uint128p_t tests
@@ -1014,7 +1014,7 @@ TEST_CASE("Pair noexcept verification", "[bigint][pair][noexcept]") {
 // --- _u128 literal ---
 
 TEST_CASE("User-defined literal _u128", "[bigint][literal]") {
-   using namespace crunnable::literals;
+   using namespace crutil::literals;
 
    auto a = "18446744073709551617"_u128;
    uint128_t b("18446744073709551617");

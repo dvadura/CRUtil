@@ -2,7 +2,7 @@
 #include "crstring.h"
 
 using namespace std;
-using namespace crunnable;
+using namespace crutil;
 
 const char* CRS::WS = " \t\n\r\f\v";
 

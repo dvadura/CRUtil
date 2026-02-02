@@ -25,7 +25,7 @@
  *          NOTE: Probably missing some conversions for some expression uses. Will add over time.
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crunnable
+ * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2016 by Dennis Vadura, All rights reserved.
  *
  * \license You can obtain and redistribute or modify this program under the
@@ -76,7 +76,7 @@
 #define DIV_ZEROMSG   "BINT: divide by zero"
 #define INVALID_INT   "BINT: invalid unsigned integer [%s]"
 
-namespace crunnable {
+namespace crutil {
    class BigIntUtil {
       public:
       static unsigned long long strtoull(char *data) {
@@ -2219,8 +2219,8 @@ namespace crunnable {
 // -------------------------------------------------------------------------------------
 namespace std {
    template<>
-   struct hash<crunnable::uint128p_t> {
-      size_t operator()(const crunnable::uint128p_t& v) const noexcept {
+   struct hash<crutil::uint128p_t> {
+      size_t operator()(const crutil::uint128p_t& v) const noexcept {
          size_t seed = hash<uint64_t>{}(v.BI_LO);
          seed ^= hash<uint64_t>{}(v.BI_HI) + 0x9e3779b9 + (seed<<6) + (seed>>2);
          return seed;
@@ -2229,8 +2229,8 @@ namespace std {
 
 #ifdef INT128_INTRINSIC
    template<>
-   struct hash<crunnable::uint128_t> {
-      size_t operator()(const crunnable::uint128_t& v) const noexcept {
+   struct hash<crutil::uint128_t> {
+      size_t operator()(const crutil::uint128_t& v) const noexcept {
          size_t seed = hash<uint64_t>{}(v.BI_SLO);
          seed ^= hash<uint64_t>{}(v.BI_SHI) + 0x9e3779b9 + (seed<<6) + (seed>>2);
          return seed;
@@ -2242,7 +2242,7 @@ namespace std {
    // std::numeric_limits specialization
    // -------------------------------------------------------------------------------------
    template<>
-   struct numeric_limits<crunnable::uint128p_t> {
+   struct numeric_limits<crutil::uint128p_t> {
       static constexpr bool is_specialized = true;
       static constexpr bool is_signed      = false;
       static constexpr bool is_integer     = true;
@@ -2267,20 +2267,20 @@ namespace std {
       static constexpr int max_exponent    = 0;
       static constexpr int max_exponent10  = 0;
 
-      static constexpr crunnable::uint128p_t min()     noexcept { return crunnable::uint128p_t(0UL); }
-      static constexpr crunnable::uint128p_t max()     noexcept { return crunnable::uint128p_t(0xffffffffffffffffUL, 0xffffffffffffffffUL); }
-      static constexpr crunnable::uint128p_t lowest()  noexcept { return min(); }
-      static constexpr crunnable::uint128p_t epsilon()       noexcept { return crunnable::uint128p_t(0UL); }
-      static constexpr crunnable::uint128p_t round_error()   noexcept { return crunnable::uint128p_t(0UL); }
-      static constexpr crunnable::uint128p_t infinity()      noexcept { return crunnable::uint128p_t(0UL); }
-      static constexpr crunnable::uint128p_t quiet_NaN()     noexcept { return crunnable::uint128p_t(0UL); }
-      static constexpr crunnable::uint128p_t signaling_NaN() noexcept { return crunnable::uint128p_t(0UL); }
-      static constexpr crunnable::uint128p_t denorm_min()    noexcept { return crunnable::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t min()     noexcept { return crutil::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t max()     noexcept { return crutil::uint128p_t(0xffffffffffffffffUL, 0xffffffffffffffffUL); }
+      static constexpr crutil::uint128p_t lowest()  noexcept { return min(); }
+      static constexpr crutil::uint128p_t epsilon()       noexcept { return crutil::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t round_error()   noexcept { return crutil::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t infinity()      noexcept { return crutil::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t quiet_NaN()     noexcept { return crutil::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t signaling_NaN() noexcept { return crutil::uint128p_t(0UL); }
+      static constexpr crutil::uint128p_t denorm_min()    noexcept { return crutil::uint128p_t(0UL); }
    };
 
 #ifdef INT128_INTRINSIC
    template<>
-   struct numeric_limits<crunnable::uint128_t> {
+   struct numeric_limits<crutil::uint128_t> {
       static constexpr bool is_specialized = true;
       static constexpr bool is_signed      = false;
       static constexpr bool is_integer     = true;
@@ -2305,15 +2305,15 @@ namespace std {
       static constexpr int max_exponent    = 0;
       static constexpr int max_exponent10  = 0;
 
-      static constexpr crunnable::uint128_t min()     noexcept { return crunnable::uint128_t(0UL); }
-      static constexpr crunnable::uint128_t max()     noexcept { return crunnable::uint128_t(0xffffffffffffffffUL, 0xffffffffffffffffUL); }
-      static constexpr crunnable::uint128_t lowest()  noexcept { return min(); }
-      static constexpr crunnable::uint128_t epsilon()       noexcept { return crunnable::uint128_t(0UL); }
-      static constexpr crunnable::uint128_t round_error()   noexcept { return crunnable::uint128_t(0UL); }
-      static constexpr crunnable::uint128_t infinity()      noexcept { return crunnable::uint128_t(0UL); }
-      static constexpr crunnable::uint128_t quiet_NaN()     noexcept { return crunnable::uint128_t(0UL); }
-      static constexpr crunnable::uint128_t signaling_NaN() noexcept { return crunnable::uint128_t(0UL); }
-      static constexpr crunnable::uint128_t denorm_min()    noexcept { return crunnable::uint128_t(0UL); }
+      static constexpr crutil::uint128_t min()     noexcept { return crutil::uint128_t(0UL); }
+      static constexpr crutil::uint128_t max()     noexcept { return crutil::uint128_t(0xffffffffffffffffUL, 0xffffffffffffffffUL); }
+      static constexpr crutil::uint128_t lowest()  noexcept { return min(); }
+      static constexpr crutil::uint128_t epsilon()       noexcept { return crutil::uint128_t(0UL); }
+      static constexpr crutil::uint128_t round_error()   noexcept { return crutil::uint128_t(0UL); }
+      static constexpr crutil::uint128_t infinity()      noexcept { return crutil::uint128_t(0UL); }
+      static constexpr crutil::uint128_t quiet_NaN()     noexcept { return crutil::uint128_t(0UL); }
+      static constexpr crutil::uint128_t signaling_NaN() noexcept { return crutil::uint128_t(0UL); }
+      static constexpr crutil::uint128_t denorm_min()    noexcept { return crutil::uint128_t(0UL); }
    };
 #endif
 }

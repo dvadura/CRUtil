@@ -1,7 +1,7 @@
 #include "catch2.hpp"
 #include "lstring.h"
 
-using namespace crunnable;
+using namespace crutil;
 
 TEST_CASE("Obfuscate XOR is its own inverse", "[obfuscate]") {
    constexpr Obfuscate o;

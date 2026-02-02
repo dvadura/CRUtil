@@ -7,7 +7,7 @@
  *          to union-pun against.
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crunnable
+ * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2016 by Dennis Vadura, All rights reserved.
  *
  * \license You can obtain and redistribute or modify this program under the
@@ -23,7 +23,7 @@
 #define DIV256_ZEROMSG   "BINT256: divide by zero"
 #define INVALID256_INT   "BINT256: invalid unsigned integer [%s]"
 
-namespace crunnable {
+namespace crutil {
 
    // -----------------------------------------------------------------------------------
    // Specialization of pair<uint128_t, uint128_t> as a 256-bit unsigned integer
@@ -1137,11 +1137,11 @@ namespace crunnable {
 // -------------------------------------------------------------------------------------
 namespace std {
    template<>
-   struct hash<crunnable::uint256_t> {
-      size_t operator()(const crunnable::uint256_t& v) const noexcept {
+   struct hash<crutil::uint256_t> {
+      size_t operator()(const crutil::uint256_t& v) const noexcept {
          // Use boost-style hash combining on the two 128-bit halves
-         size_t seed = hash<crunnable::uint128_t>{}(v.lo128());
-         seed ^= hash<crunnable::uint128_t>{}(v.hi128()) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+         size_t seed = hash<crutil::uint128_t>{}(v.lo128());
+         seed ^= hash<crutil::uint128_t>{}(v.hi128()) + 0x9e3779b9 + (seed<<6) + (seed>>2);
          return seed;
       }
    };
@@ -1151,7 +1151,7 @@ namespace std {
    // std::numeric_limits specialization for uint256_t
    // -------------------------------------------------------------------------------------
    template<>
-   struct numeric_limits<crunnable::uint256_t> {
+   struct numeric_limits<crutil::uint256_t> {
       static constexpr bool is_specialized = true;
       static constexpr bool is_signed      = false;
       static constexpr bool is_integer     = true;
@@ -1176,20 +1176,20 @@ namespace std {
       static constexpr int max_exponent    = 0;
       static constexpr int max_exponent10  = 0;
 
-      static crunnable::uint256_t min()     noexcept { return crunnable::uint256_t(0UL); }
-      static crunnable::uint256_t max()     noexcept {
-         return crunnable::uint256_t(
-            crunnable::uint128_t(0xffffffffffffffffUL, 0xffffffffffffffffUL),
-            crunnable::uint128_t(0xffffffffffffffffUL, 0xffffffffffffffffUL)
+      static crutil::uint256_t min()     noexcept { return crutil::uint256_t(0UL); }
+      static crutil::uint256_t max()     noexcept {
+         return crutil::uint256_t(
+            crutil::uint128_t(0xffffffffffffffffUL, 0xffffffffffffffffUL),
+            crutil::uint128_t(0xffffffffffffffffUL, 0xffffffffffffffffUL)
          );
       }
-      static crunnable::uint256_t lowest()  noexcept { return min(); }
-      static crunnable::uint256_t epsilon()       noexcept { return crunnable::uint256_t(0UL); }
-      static crunnable::uint256_t round_error()   noexcept { return crunnable::uint256_t(0UL); }
-      static crunnable::uint256_t infinity()      noexcept { return crunnable::uint256_t(0UL); }
-      static crunnable::uint256_t quiet_NaN()     noexcept { return crunnable::uint256_t(0UL); }
-      static crunnable::uint256_t signaling_NaN() noexcept { return crunnable::uint256_t(0UL); }
-      static crunnable::uint256_t denorm_min()    noexcept { return crunnable::uint256_t(0UL); }
+      static crutil::uint256_t lowest()  noexcept { return min(); }
+      static crutil::uint256_t epsilon()       noexcept { return crutil::uint256_t(0UL); }
+      static crutil::uint256_t round_error()   noexcept { return crutil::uint256_t(0UL); }
+      static crutil::uint256_t infinity()      noexcept { return crutil::uint256_t(0UL); }
+      static crutil::uint256_t quiet_NaN()     noexcept { return crutil::uint256_t(0UL); }
+      static crutil::uint256_t signaling_NaN() noexcept { return crutil::uint256_t(0UL); }
+      static crutil::uint256_t denorm_min()    noexcept { return crutil::uint256_t(0UL); }
    };
 }
 

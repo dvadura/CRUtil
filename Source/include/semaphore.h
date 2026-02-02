@@ -8,7 +8,7 @@
  *
  *         
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crunnable
+ * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
  * 
  * \license You can obtain and redistribute or modify this program under the 
@@ -48,7 +48,7 @@
 #define VV    V()
 #endif
 
-namespace crunnable {
+namespace crutil {
    extern void semtraceadd(void* ptr, bool porv, uint64_t cost, const char* where);
    extern void semtracedump(FILE* out=stderr);
 

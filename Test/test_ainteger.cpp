@@ -2,7 +2,7 @@
 #include "ainteger.h"
 
 using namespace std;
-using namespace crunnable;
+using namespace crutil;
 
 // --- comparison ---
 

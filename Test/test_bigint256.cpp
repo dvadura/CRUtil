@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 using namespace std;
-using namespace crunnable;
+using namespace crutil;
 
 // 2^256 - 1 as decimal string
 static const char *MAX256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
@@ -652,7 +652,7 @@ TEST_CASE("256-bit std::numeric_limits", "[bigint256][limits]") {
 // =============================================================================
 
 TEST_CASE("256-bit user-defined literal", "[bigint256][literal]") {
-   using namespace crunnable::literals;
+   using namespace crutil::literals;
 
    auto a = "115792089237316195423570985008687907853269984665640564039457584007913129639935"_u256;
    REQUIRE(a == uint256_t(MAX256));

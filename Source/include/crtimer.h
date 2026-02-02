@@ -6,7 +6,7 @@
  *          and convert to GMT.
  *
  * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crunnable
+ * \see     http://www.vadura.eu/crutil
  * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
  *
  * \license You can obtain and redistribute or modify this program under the 
@@ -19,7 +19,7 @@
 
 #include "crexception.h"
 
-namespace crunnable {
+namespace crutil {
    typedef struct crts {
       union {
          ts_t ts;

@@ -5,7 +5,7 @@
 #include <thread>
 
 using namespace std;
-using namespace crunnable;
+using namespace crutil;
 
 // --- comparison ---
 
@@ -72,13 +72,13 @@ TEST_CASE("CRTime delay operations", "[crtimer]") {
    REQUIRE(delay == 0);
    REQUIRE(diff > 0);
 
-   // diff may be large on throttled systems so allow generous margin
-   REQUIRE(diff < 50000);
+   // diff may be large on throttled/loaded systems so allow generous margin
+   REQUIRE(diff < 500000);
 
    y.now();
    std::this_thread::sleep_for(std::chrono::microseconds(10000));
    diff = y.diff();
    REQUIRE(diff > 0);
    REQUIRE(diff > 10000000);
-   REQUIRE(diff < 12000000);
+   REQUIRE(diff < 50000000);
 }

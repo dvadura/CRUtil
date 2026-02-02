@@ -9,7 +9,7 @@
 #define CRStradd(DST,SRC)         CRS::add(DST,SRC,sizeof(DST))
 #define CRStrjoin(DST,SRC)        CRS::join(DST,SRC,sizeof(DST))
 
-namespace crunnable {
+namespace crutil {
    class CRS {
    private:
       static char* _dortrim(char* str, const char* ws, size_t size, size_t& len);

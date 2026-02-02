@@ -1,5 +1,5 @@
 // Condition tests using std::thread instead of CRunnable to avoid
-// dependencies on crunnable.h, clist.h, and socket.h.
+// dependencies on crutil.h, clist.h, and socket.h.
 
 #include "catch2.hpp"
 #include "condition.h"
@@ -9,7 +9,7 @@
 #include <chrono>
 
 using namespace std;
-using namespace crunnable;
+using namespace crutil;
 
 // Static definitions needed by Condition, Semaphore, and CRException.
 // These normally live in their respective .cpp files which aren't in the
