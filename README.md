@@ -153,12 +153,29 @@ ordering problems in multi-threaded code.
 
 ## Building
 
+### Bif
+
 ```bash
 bif do -l    # list available build targets
 bif do 1     # build target #1
 ```
 
-Or compile manually:
+### CMake
+
+A `CMakeLists.txt` is provided for environments that prefer CMake:
+
+```bash
+cmake -B build .
+cmake --build build                # library -> Build/
+cmake --build build --target package   # tar.gz -> Artifacts/
+
+# with tests
+cmake -B build -DCRUTIL_BUILD_TESTS=ON .
+cmake --build build
+ctest --test-dir build
+```
+
+### Manual Compilation
 
 ```bash
 c++ -std=gnu++17 -I Source/include -c Source/crstring.cpp -o crstring.o
@@ -171,6 +188,12 @@ The full suite has 164 test cases with 966 assertions covering arithmetic,
 conversions, constexpr, noexcept, hex/oct output, bit utilities, std::hash,
 std::numeric_limits, string operations, timers, conditions, exceptions, and
 obfuscation.
+
+```bash
+bif test    # build and run all tests
+```
+
+Or manually:
 
 ```bash
 bif do 0    # build the debug library first

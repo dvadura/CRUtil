@@ -1,0 +1,24 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": { "major": 3, "minor": 14, "patch": 0 },
+    "configurePresets": [
+        {
+            "name":        "debug",
+            "displayName":  "Debug",
+            "binaryDir":    "${sourceDir}/Build/cmake-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE":    "Debug",
+                "CRUTIL_BUILD_TESTS":  "ON"
+            }
+        },
+        {
+            "name":        "release",
+            "displayName":  "Release",
+            "binaryDir":    "${sourceDir}/Build/cmake-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE":    "Release",
+                "CRUTIL_BUILD_TESTS":  "OFF"
+            }
+        }
+    ]
+}

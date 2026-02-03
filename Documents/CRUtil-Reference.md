@@ -841,6 +841,21 @@ bif -h
 bif do -h
 ```
 
+### CMake
+
+A `CMakeLists.txt` is provided for environments that prefer CMake:
+
+```bash
+cmake -B build .
+cmake --build build                # library -> Build/
+cmake --build build --target package   # tar.gz -> Artifacts/
+
+# with tests
+cmake -B build -DCRUTIL_BUILD_TESTS=ON .
+cmake --build build
+ctest --test-dir build
+```
+
 ### Manual Compilation
 
 ```bash
@@ -873,6 +888,12 @@ with 966 assertions.
 | test_crtimer.cpp | crtimer.h |
 
 Build and run:
+
+```bash
+bif test    # build and run all tests
+```
+
+Or manually:
 
 ```bash
 bif do 0    # build the debug library first
