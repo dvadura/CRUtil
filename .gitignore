@@ -13,6 +13,10 @@ Source/build.py
 Config/.digests
 Test/test_runner*
 
+### CMake ###
+# CMake-produced artifacts (bif bundles in Artifacts/ are tracked)
+Artifacts/CRUtil-*.tar.gz
+
 ### C++ ###
 # Prerequisites
 *.d
