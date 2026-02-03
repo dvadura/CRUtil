@@ -1,4 +1,29 @@
 ===============================================================================================
+# Fix git-askpass multi-remote credential resolution
+
+February 03, 2026 :: 06:19 PM EST (UTC: 23:19 UTC)
+
+Fixed git-askpass.sh and its inline .gitaskpass.py helper so that repos with
+multiple remotes (e.g., origin + github) resolve credentials correctly.
+
+1. **`.gitaskpass.py` multi-remote matching** — The old code passed URL strings
+   from `.gituser` keys to `git remote get-url` as if they were remote names,
+   which always failed, causing a fallback to the first entry (wrong credentials
+   for any remote other than the first). Replaced with direct URL-key and
+   hostname-based matching against the prompt URL git provides.
+
+2. **`cmd_enable` (git-askpass.sh)** — Now sets `core.askpass` to an absolute
+   path instead of relative `./`, preventing breakage when git spawns child
+   processes. Disables `credential.helper` locally to stop macOS Keychain
+   (`osxkeychain`) from intercepting the askpass flow. Copies `user.name` and
+   `user.email` from global to local config if not already set.
+
+3. **`cmd_add` (git-askpass.sh)** — Now accepts a git remote name (e.g.,
+   `github`) in addition to raw URLs. Resolves the name to a URL via
+   `git remote get-url`, embeds the username in the URL if missing (so git
+   doesn't prompt for it), and stores the credential keyed by the resolved URL.
+
+===============================================================================================
 # Add CMake build support alongside bif
 
 February 03, 2026 :: 05:32 PM EST (UTC: 22:32 UTC)
