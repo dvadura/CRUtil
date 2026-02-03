@@ -1,4 +1,31 @@
 ===============================================================================================
+# Add CMake build support alongside bif
+
+February 03, 2026 :: 05:32 PM EST (UTC: 22:32 UTC)
+
+Added a CMakeLists.txt and CMakePresets.json so the project can be built with
+CMake in addition to bif. Updated README and Reference docs to document both
+build systems and `bif test`.
+
+1. **CMakeLists.txt** — Static library target (`crutil`) with output directed to
+   `Build/`. A `package` target stages the library and headers into
+   `Artifacts/CRUtil-<version>.tar.gz`. Test suite opt-in via
+   `-DCRUTIL_BUILD_TESTS=ON` builds the Catch2 runner and registers it with
+   `ctest`.
+
+2. **CMakePresets.json** — Defines `debug` and `release` configure presets with
+   `binaryDir` under `Build/cmake-debug` and `Build/cmake-release`. IDEs
+   (CLion, VS Code, Visual Studio) pick these up automatically so builds land
+   in `Build/` without manual configuration.
+
+3. **README.md / CRUtil-Reference.md** — Added `bif test` as the primary test
+   command. Added a CMake subsection under Building with usage examples for
+   library, package, and test workflows.
+
+4. **.gitignore** — Added `Artifacts/CRUtil-*.tar.gz` so CMake package output
+   does not mix with bif-produced versioned bundles.
+
+===============================================================================================
 # Fix compiler warnings in headers and tests
 
 February 02, 2026 :: 05:55 PM EST (UTC: 17:55 UTC)
