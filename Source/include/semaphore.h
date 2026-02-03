@@ -87,6 +87,14 @@ namespace crutil {
 #define __sem_m_owner m_mutex.__data.__owner
 #define __sem_m_depth m_mutex.__data.__count
 #define __sem_m_users m_mutex.__data.__nusers
+#elif defined(DEBUG)
+      // Portable fallback: track lock depth and owner manually when
+      // platform mutex internals are not accessible (e.g. macOS).
+      pid_t m_sem_owner = 0;
+      int   m_sem_depth = 0;
+#define __sem_m_owner m_sem_owner
+#define __sem_m_depth m_sem_depth
+#define __SEM_PORTABLE_TRACKING__ 1
 #endif
       pthread_mutex_t m_mutex;
 
@@ -113,7 +121,7 @@ namespace crutil {
       ///                 the mutex is held when this happens
       /// --------------------------------------------------------------------------------------
       inline void cv(void* /*cond*/) {
-#if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
+#ifdef __sem_m_depth
          __sem_m_depth -= 1;
 #endif
       }
@@ -123,7 +131,7 @@ namespace crutil {
       ///                 the mutex is held when this happens
       /// --------------------------------------------------------------------------------------
       inline void cp(void* /*cond*/) {
-#if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
+#ifdef __sem_m_depth
          __sem_m_depth += 1;
 #endif
       }
@@ -308,10 +316,13 @@ namespace crutil {
 #endif
          }
          else if (m_recursive == false) {
-#if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
+#ifdef __sem_m_depth
             __sem_m_depth = 1;
 #endif
          }
+#ifdef __SEM_PORTABLE_TRACKING__
+         __sem_m_owner = CRX_GETTID();
+#endif
 
 #ifdef DEBUG
          char tmp[WHERE_BUFSIZE];
@@ -350,7 +361,7 @@ namespace crutil {
          m_prev_thread_id = __sem_m_owner;
 #endif
          if (m_recursive == false) {
-#if (defined(_GNU_SOURCE) && !defined(ANDROID) && !defined(__APPLE__))
+#ifdef __sem_m_depth
             __sem_m_depth = 0;
 #endif
          }

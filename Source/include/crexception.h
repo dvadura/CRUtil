@@ -57,7 +57,7 @@ using namespace std;
 #include "crtypes.h"
 #include "crlikely.h"
 
-#if (defined(_GNU_SOURCE) && !defined(ANDROID))
+#if (defined(_GNU_SOURCE) || defined(__APPLE__)) && !defined(ANDROID)
 #include <execinfo.h>
 #include <cxxabi.h>
 #endif
@@ -141,7 +141,7 @@ namespace crutil {
       static std::map<pid_t,bool> s_tmap;
       static pthread_mutex_t      s_tlock;
 
-#if (defined(_GNU_SOURCE) && !defined(ANDROID))
+#if (defined(_GNU_SOURCE) || defined(__APPLE__)) && !defined(ANDROID)
       /// Demangle a single backtrace symbol string, returning a readable version.
       static std::string demangle(const char* sym) {
          std::string result(sym);
@@ -239,9 +239,10 @@ namespace crutil {
       CRException(const char *file, const unsigned int line, const int err, const char *func, const char *msg...)
          : runtime_error(""), m_errnumber(err), m_filename(file), m_funcname(func),  m_linenumber(line),  m_staticonly(false)
       {
-#if defined(_GNU_SOURCE)
-#if !defined(ANDROID)
+#if (defined(_GNU_SOURCE) || defined(__APPLE__)) && !defined(ANDROID)
          m_nums = backtrace(m_symbols, MAX_BACK_TRACE_SYMBOLS);
+#else
+         m_nums = 0;
 #endif
          va_list ap;
 
@@ -253,7 +254,6 @@ namespace crutil {
          else {
             initialize(msg, ap);
          }
-#endif
       }
 
       static pid_t _gettid() {
@@ -279,9 +279,10 @@ namespace crutil {
       CRException(const char *file, const unsigned int line, const int err, const char *func, const string& msg)
          : runtime_error(""), m_errnumber(err), m_filename(file), m_funcname(func),  m_linenumber(line),  m_staticonly(false)
       {
-#if defined(_GNU_SOURCE)
-#if !defined(ANDROID)
+#if (defined(_GNU_SOURCE) || defined(__APPLE__)) && !defined(ANDROID)
          m_nums = backtrace(m_symbols, MAX_BACK_TRACE_SYMBOLS);
+#else
+         m_nums = 0;
 #endif
          m_message = msg;
          m_errmsg.clear();
@@ -302,7 +303,6 @@ namespace crutil {
 
          m_pid = getpid();
          m_tid = CRX_GETTID();
-#endif
       }
 
       /// Return the reason for the exception. Overrides base class impl.
@@ -359,7 +359,7 @@ namespace crutil {
 
          if (ex.m_staticonly == false && ex.m_nums > 1) {
 
-#if (defined(_GNU_SOURCE) && !defined(ANDROID))
+#if (defined(_GNU_SOURCE) || defined(__APPLE__)) && !defined(ANDROID)
             char **syms = backtrace_symbols(ex.m_symbols, ex.m_nums);
 
             if (syms != NULL) {
