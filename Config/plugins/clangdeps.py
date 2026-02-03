@@ -30,6 +30,7 @@ import re
 # for the specified target.
 class ClangDeps(PluginBase):
     SPLIT_PATTERN = re.compile(r'[:\s]+')
+    CONTINUATION  = re.compile(r'\\\s*\n')
 
     def __init__(self):
         pass
@@ -45,19 +46,20 @@ class ClangDeps(PluginBase):
         if not (target and loc and file):
             return []
 
-        f = open(pathlib.Path(loc) / file, "r")
-
         # for CLANG the deps file contains something similar to:
         #
-        #    target.o: target.c target.h ....
+        #    target.o: target.c target.h \
+        #              other.h ...
         #
+        # Lines may be continued with a trailing backslash. Read the whole file,
+        # collapse continuations, then split on whitespace/colons.
         # Note that some of the paths for the deps may be absolute.
-        try:
-            for line in f:
-                names = re.split(ClangDeps.SPLIT_PATTERN, line.strip())
-                if names[0] == target:
-                    return names[1:]
-        finally:
-            f.close()
+        with open(pathlib.Path(loc) / file, "r") as f:
+            content = re.sub(ClangDeps.CONTINUATION, ' ', f.read())
+
+        for line in content.splitlines():
+            names = re.split(ClangDeps.SPLIT_PATTERN, line.strip())
+            if names and names[0] == target:
+                return [n for n in names[1:] if n]
 
         return []
