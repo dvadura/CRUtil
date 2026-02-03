@@ -6,6 +6,7 @@
 ### BuildItFast ###
 .d/
 .gituser
+.gitaskpass.py
 Build/
 Source/.b/
 Source/.build/
