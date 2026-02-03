@@ -77,16 +77,17 @@
 #
 
 # ==============================================================================================
-# Global Environment Settings, go wild
+# Global Environment Settings 
 # ==============================================================================================
 env:
-  PRJ_CLANG_SOURCEDIR:  '{BIF_PRJ_SOURCEDIR}/clang'
+  PRJ_CLANG_SOURCEDIR:  '{BIF_PRJ_SOURCEDIR}'
   PRJ_PYTHON_SOURCEDIR: '{BIF_PRJ_SOURCEDIR}/python'
   # Note that the use of {1}, and {2} here is highly dependent on them having the correct values
-  # when they are expanded in context below. If any targets have different capture groups then
-  # either be explicit or redefine this macro in an env: section in that target, recipe or recipe 
-  # step.
-  BIF_LOC_BUILDDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}/{2}.lower()'
+  # when they are expanded in contexts below. If any targets have different capture groups then
+  # either be explicit or redefine this macro in an env: section in that target, recipe or in a
+  # recipe step.
+  BUILD_TGTDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}/{2}.lower()'
+  CLANG_INCDIR: 'include'
 
 # ==============================================================================================
 # Root Artifact Targets for running TESTS
@@ -101,19 +102,45 @@ env:
 #     ---------
 #     CLANG
 #     ---------
-#     <PKG>+cl+tst,{BIF_ART_VERSION}-osx.amd64.DBG-{buildid}.bin
+#     <PKG>+cl+tst,{BIF_ART_VERSION}-osx.amd64.DBG-{buildid}.lib
 #                                                  {1}     {2}    {3}
 #
-'{BIF_ART_NAME}+cl+tst,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.bin' :
-  adir: '{BIF_LOC_BUILDDIR}'
-  needs:
-  - '{BIF_ART_NAME}+cl-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.bin'
+'{BIF_ART_NAME}+cl+tst,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib' :
   env:
-    CFLAGS: ['-std=gnu++17', '-g', '-DDEBUG=1']
+    INCDIR_SRCDIR: '{PRJ_CLANG_SOURCEDIR}/{CLANG_INCDIR}'
+    INCDIR_LOCDIR: '{PRJ_CLANG_SOURCEDIR}'
+
+  adir: '{BIF_PRJ_TESTDIR}'
+  bdir: '{BIF_PRJ_TESTDIR}'
+  needs:
+  - '#tests'
+  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.lib'
+  uses: 'include'
   virtual: true
-  tool: echo
-  args:
-  - 'Binary is done, modify this recipe to add steps that link with a test framework, and run the test.'
+  steps:
+  - tool: g++
+    options: ['-std=gnu++17', '-g', '-I< {##} >', '-o', 'test_runner']
+    args:
+    - '{#}'
+    - '-lpthread'
+  - tool: bash
+    options: ['-c', './test_runner -s']
+
+tests:
+  adir: '{BIF_PRJ_TESTDIR}'
+  needs:
+  - 'test_main.cpp'
+  - 'test_ainteger.cpp'
+  - 'test_bigint.cpp'
+  - 'test_bigint256.cpp'
+  - 'test_condition.cpp'
+  - 'test_crexception.cpp'
+  - 'test_crstring.cpp'
+  - 'test_crtimer.cpp'
+  - 'test_lstring.cpp'
+
+test___.cpp:
+  adir: '{BIF_PRJ_TESTDIR}'
 
 
 # ==============================================================================================
@@ -127,11 +154,16 @@ env:
 #                        {1}     {2}    {3}
 #
 '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib.tar.gz' :
-  adir: ['{BIF_PRJ_ARTIFACTDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}']
-  bdir: ['{BIF_LOC_BUILDDIR}']
   env:
+    INCDIR_SRCDIR: '{PRJ_CLANG_SOURCEDIR}/{CLANG_INCDIR}'
+    INCDIR_LOCDIR: '{ADIR}'
+
+  adir: ['{BIF_PRJ_ARTIFACTDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}']
+  bdir: ['{BUILD_TGTDIR}']
+
   needs:
-  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.bin'
+  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.lib'
+  - '{CLANG_INCDIR}'
   tool: tar
   options:
   - '-czf'
@@ -139,57 +171,65 @@ env:
   args:
   - '{<}'
 
-
 # ==============================================================================================
 # CLANG dependency definitions
 # ==============================================================================================
-# CRUtil+cl,1.0-osx.amd64.DBG-{buildid}.lib
+# CRUtil+cl,1.0-osx.amd64.(DBG|REL)-{buildid}.lib
 '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib':
   env:
     DEPS_VARIANT: '"{BIF_BUILD_HOST_PLATFORM}_{1}_{2}".lower()'
-    CLANG_OBJDIR: '{BIF_LOC_BUILDDIR}/cobj'
-    CLANG_INCDIR: 'include'
-    CFLAGS: '-std=gnu++17'
-  try:
-    # -----------------------------
-    - adir: '{BIF_LOC_BUILDDIR}'
-      bdir: '{CLANG_OBJDIR}'
-      needs: ['crstring.o']
-      byproducts: ['{CLANG_OBJDIR}']
-      tool: ar
-      options:
-      - 'rcs'
-      - '{@}'
-      args:
-      - '{<}'
+    CLANG_OBJDIR: '{BUILD_TGTDIR}/cobj'
+
+  adir:  '{BUILD_TGTDIR}'
+  bdir:  '{CLANG_OBJDIR}'
+  needs: ['#objects']
+
+  steps:
+  - tool: ar
+    options:
+    - 'rcs'
+    - '{@}'
+    args:
+    - '{#}'
+
+include:
+  adir: '{INCDIR_LOCDIR}'
+  bdir: '{PRJ_CLANG_SOURCEDIR}'
+  tool: bash
+  options: ['-c', '/bin/cp -rp {CLANG_INCDIR} {ADIR}']
+    
+objects:
+  adir: '{CLANG_OBJDIR}'
+  needs:
+  - 'crstring.o'
 
 _.o:
   adir: '{CLANG_OBJDIR}'
   bdir: '{BIF_PRJ_SOURCEDIR}'
+  env:
+    CFLAGS: '-std=gnu++17'
+
   needs: [ '{1}.cpp' ]
   uses: [ '@ClangDeps({1}_{DEPS_VARIANT}.d)' ]
   steps:
   - tool: echo
-    args: [ 'Compiling: {<}' ]
+    args: [ 'Compiling: {#}' ]
   - tool: gcc
     options: [ '{CFLAGS}', '-I', 'include', '-c', '-o', '{@}' ]
     args: ['{#}']
-    silent: false
 
 _.d:
   adir: '{BIF_PRJ_SOURCEDIR}/.deps'
   bdir: '{BIF_PRJ_SOURCEDIR}'
   needs: ['{1}.split("_")[0].append(".cpp")']
-  env:
-    CFLAGS: ['-MM','-MG']
   steps:
   - tool: echo
-    args: [ 'Generating dependencies for: {<}' ]
+    args: [ 'Generating dependencies for: {#}' ]
   - tool: gitkeep
     args: [ '{ADIR}' ]
   - tool: gcc
-    options: ['-I', 'include', '-o', '{@}']
-    args: ['{CFLAGS}', '{<}']
+    options: ['MM', '-MG', '-I', 'include', '-o', '{@}']
+    args: '{<}'
 
 _.cpp:
   adir: '{BIF_PRJ_SOURCEDIR}'

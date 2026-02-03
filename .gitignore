@@ -11,6 +11,7 @@ Source/.b/
 Source/.build/
 Source/build.py
 Config/.digests
+Test/test_runner*
 
 ### C++ ###
 # Prerequisites

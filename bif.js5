@@ -57,9 +57,14 @@
          targets:[
             // Use Tar+gzip wrappers on non-windows
             {  archetype: 'Library',
-               build: ['Release'],
+               'build!': ['Release'],
                flavor: ['CLang'],
                wrapper: [[], ['Tar', 'Gzip']],
+            },
+            // Test binary, debug only
+            {  archetype: 'Library',
+               'build!': ['Debug'],
+               flavor: [['CLang', 'Test']],
             },
          ],
 
