@@ -2,79 +2,6 @@
 #
 #     https://learnxinyminutes.com/docs/yaml/
 #
-# target: {
-#    env: {
-#      key : value,
-#      ...
-#    }
-#
-#    virtual: False
-#
-#    // the winning try (recipe) block will set the node adir, and the recipe BDIR.
-#    // individual requisites will have an adir (where they can be found)
-#    //
-#    // during macro expansion if a Node is found, in all cases it when the name is
-#    // expanded it is location_to(Node.adir()) we always expand from our current
-#    // location (typically BDIR) to the Node's adir representing where it is or
-#    // where it will be when the recipe completes.
-#    //
-#    // @  -> target
-#    // ^  -> yields
-#    // +  -> byproducts
-#    //
-#    // <  -> requisites includes uses
-#    // ?  -> requisites that need updating
-#    // #  -> needs/prerequisites verified, must exist
-#    // ## -> uses/prerequisites only checked for time stamps, ok if missing
-#    // 
-#    // thus {@} expands to path_to(target.adir(),location)/target
-#    //      {<} expands to [path_to(R.adir(),location)/R.name() for R in <]
-#    //
-#    try: [                               // try is optional if single inference ruleset
-#      { adir: <location:.>,
-#        bdir: <location:${ADIR}>,        // default is adir
-#        yields: [glob1, glob2, ...],     // default is @
-#        byproducts: [glob1, glob2, ...], // default is []
-#        needs: [...],                    // default is [], means leaf target
-#        uses:  [...],                    // default is []
-#        env:{<key>:<value>, ...},        // default is {}
-#        exports:[<name>,...],            // default is {}
-#
-#        steps:                           // steps is optional if only single recipe
-#        {  tool: <toolref:make>,         // refers to tool in tools definition
-#           timeout: <value:3600s>,
-#           ignore: False,
-#           silent: False,
-#           hidden: False,
-#           options:[<option>, ...],
-#           args:[<arg>,...],
-#         },
-#         { ... step ... },
-#      },
-#      { ... try ... },
-#    ],
-# }
-#
-
-# ----------------------------------------------
-# PATH conventions
-# ----------------------------------------------
-# ~  is an alias for {BIF_PRJ_ROOTDIR}
-# ~~ is an alias for {~{USER}}
-# /  refers to current filesystem root
-# // refers to current network filesystem root
-#
-# When matching target names, _ are wild cards that in the recipe of the matched term can be expanded
-# as {n} where n is the n'th underscore from the start of the target name, initial index is 1.
-#
-# macro expressions are expanded using {MACRO}
-#
-# path expressions are evaluated as cross product via:
-#    <a b>/<c d>
-# yields a/c a/d b/c b/d
-#    there are functions available that further condion the expanded output
-# And ofcourse you can mix and match.
-#
 
 # ==============================================================================================
 # Global Environment Settings 
@@ -86,7 +13,8 @@ env:
   # when they are expanded in contexts below. If any targets have different capture groups then
   # either be explicit or redefine this macro in an env: section in that target, recipe or in a
   # recipe step.
-  BUILD_TGTDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}/{2}.lower()'
+  BUILD_TGTDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{arch}/{build}.lower()'
+  BUILD_DBGDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{arch}/dbg'
   CLANG_INCDIR: 'include'
 
 # ==============================================================================================
@@ -103,25 +31,29 @@ env:
 #     CLANG
 #     ---------
 #     <PKG>+cl+tst,{BIF_ART_VERSION}-osx.amd64.DBG-{buildid}.lib
-#                                                  {1}     {2}    {3}
 #
-'{BIF_ART_NAME}+cl+tst,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib' :
+'{BIF_ART_NAME}+cl+tst,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{:arch}.{:build}-{:id}.bin' :
   env:
     INCDIR_SRCDIR: '{PRJ_CLANG_SOURCEDIR}/{CLANG_INCDIR}'
     INCDIR_LOCDIR: '{PRJ_CLANG_SOURCEDIR}'
+    CFLAGS: ['-g', '-DDEBUG']
+    DBGLIB: '{BUILD_DBGDIR}/{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{arch}.DBG-{id}.lib'
 
   adir: '{BIF_PRJ_TESTDIR}'
   bdir: '{BIF_PRJ_TESTDIR}'
   needs:
   - '#tests'
-  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.lib'
-  uses: 'include'
+  uses: 
+  - 'include'
+  - '{DBGLIB}'
   virtual: true
   steps:
   - tool: g++
-    options: ['-std=gnu++17', '-g', '-I< {##} >', '-o', 'test_runner']
+    options: ['-std=gnu++17', '{*CFLAGS}', '-I< {##}[0] >', '-o', 'test_runner']
     args:
+    - '{CFLAGS}'
     - '{#}'
+    - '{##}[1]'
     - '-lpthread'
   - tool: bash
     options: ['-c', './test_runner -s']
@@ -153,16 +85,17 @@ test___.cpp:
 #     <PKG>+cl,1.0-osx.amd64.REL-{buildid}.lib.tar.gz
 #                        {1}     {2}    {3}
 #
-'{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib.tar.gz' :
+'{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{:arch}.{:build}-{:id}.lib.tar.gz' :
   env:
     INCDIR_SRCDIR: '{PRJ_CLANG_SOURCEDIR}/{CLANG_INCDIR}'
     INCDIR_LOCDIR: '{ADIR}'
+    CFLAGS: ['-O1']
 
-  adir: ['{BIF_PRJ_ARTIFACTDIR}/{BIF_BUILD_HOST_PLATFORM}/{1}']
+  adir: ['{BIF_PRJ_ARTIFACTDIR}/{BIF_BUILD_HOST_PLATFORM}/{arch}']
   bdir: ['{BUILD_TGTDIR}']
 
   needs:
-  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{1}.{2}-{3}.lib'
+  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{arch}.{build}-{id}.lib'
   - '{CLANG_INCDIR}'
   tool: tar
   options:
@@ -175,9 +108,9 @@ test___.cpp:
 # CLANG dependency definitions
 # ==============================================================================================
 # CRUtil+cl,1.0-osx.amd64.(DBG|REL)-{buildid}.lib
-'{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}._._-_.lib':
+'{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{:arch}.{:build}-{:id}.lib':
   env:
-    DEPS_VARIANT: '"{BIF_BUILD_HOST_PLATFORM}_{1}_{2}".lower()'
+    DEPS_VARIANT: '"{BIF_BUILD_HOST_PLATFORM}_{arch}_{build}".lower()'
     CLANG_OBJDIR: '{BUILD_TGTDIR}/cobj'
 
   adir:  '{BUILD_TGTDIR}'
@@ -207,7 +140,7 @@ _.o:
   adir: '{CLANG_OBJDIR}'
   bdir: '{BIF_PRJ_SOURCEDIR}'
   env:
-    CFLAGS: '-std=gnu++17'
+    CFLAGS: ['-std=gnu++17', '{-CFLAGS}']
 
   needs: [ '{1}.cpp' ]
   uses: [ '@ClangDeps({1}_{DEPS_VARIANT}.d)' ]
@@ -215,7 +148,7 @@ _.o:
   - tool: echo
     args: [ 'Compiling: {#}' ]
   - tool: gcc
-    options: [ '{CFLAGS}', '-I', 'include', '-c', '-o', '{@}' ]
+    options: [ '{-CFLAGS}', '-I', 'include', '-c', '-o', '{@}' ]
     args: ['{#}']
 
 _.d:
@@ -228,7 +161,7 @@ _.d:
   - tool: gitkeep
     args: [ '{ADIR}' ]
   - tool: gcc
-    options: ['MM', '-MG', '-I', 'include', '-o', '{@}']
+    options: ['-MM', '-MG', '-I', 'include', '-o', '{@}']
     args: '{<}'
 
 _.cpp:
