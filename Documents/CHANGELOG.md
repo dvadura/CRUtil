@@ -1,4 +1,67 @@
 ===============================================================================================
+# Improve header documentation for readability and Doxygen compatibility
+
+February 14, 2026 :: 01:00 PM EST (UTC: 18:00 UTC)
+
+Improved header documentation quality with comprehensive additions to crstring.h,
+modernized Doxygen command style, and resolved documentation gaps for better API
+clarity and modern tooling compatibility.
+
+1. **crstring.h comprehensive documentation** — Added complete documentation for
+   previously undocumented header (79 lines, 30+ public methods). Includes:
+   - Standard copyright header and file-level `@file` documentation
+   - Class-level `@class` documentation with usage examples for CRS
+   - All 4 macros documented with `@def` blocks (CRSnprintf, CRStrcpy, CRStradd, CRStrjoin)
+   - Complete method documentation with `@brief`, `@param`, `@returns` for all public methods
+   - Template parameter documentation with `@tparam` for throwifempty methods
+   - Organized method grouping with `@name` and `@{...@}` for: Safe Formatting,
+     Trimming Operations, String Manipulation, and Utility Operations
+
+2. **crstring.cpp file documentation** — Added standard copyright header and
+   `@file` block referencing crstring.h for API documentation.
+
+3. **crtimer.h modernization and fixes** — Fixed typo ("wraper" → "wrapper" on
+   line 3). Converted from backslash commands to modern `@` style (`\brief` →
+   `@brief`, etc.). Moved copyright/license from Doxygen `\copy` and `\license`
+   tags to standard comment header at file top. Fixed project name reference in
+   crexception.h ("CRunnable" → "CRUtil").
+
+4. **Complete style migration** — All 13 header files in Source/include/ now use
+   modern Doxygen `@` command style instead of legacy backslash style:
+   - Phase 1 files: crstring.h, crtimer.h (from original plan)
+   - Phase 3 files: ainteger.h, bigint.h, bigint128.h, bigint256.h, condition.h,
+     crexception.h, crlikely.h, crtypes.h, lstring.h, needs.h, semaphore.h
+   - All files now have standard copyright headers at file top
+   - All `\copy` and `\license` tags removed from Doxygen blocks
+   - Consistent modern style across entire include directory
+
+===============================================================================================
+# Update header documentation URLs and copyright dates
+
+February 14, 2026 :: 12:42 PM EST (UTC: 17:42 UTC)
+
+Updated all header file documentation to reflect the current GitHub repository
+location and extend copyright dates to 2026.
+
+1. **\see tag URL updates** — Replaced all references to
+   `http://www.vadura.eu/crutil` with `https://github.com/dvadura/CRUtil` in
+   12 header files (ainteger.h, bigint.h, bigint128.h, bigint256.h,
+   condition.h, crexception.h, crlikely.h, crtimer.h, crtypes.h, lstring.h,
+   needs.h, semaphore.h).
+
+2. **Copyright date updates** — Updated copyright dates to reflect continued
+   maintenance through 2026:
+   - Files with `2010-2013` updated to `2010-2026` (8 files): ainteger.h,
+     condition.h, crexception.h, crlikely.h, crtimer.h, crtypes.h, lstring.h,
+     semaphore.h
+   - Files with `2016` updated to `2016-2026` (4 files): bigint.h,
+     bigint128.h, bigint256.h, needs.h
+
+3. **Excluded files** — endian.h intentionally excluded (third-party public
+   domain code). crstring.h and crstring.cpp lack standard headers and were
+   not updated.
+
+===============================================================================================
 # Fix git-askpass multi-remote credential resolution
 
 February 03, 2026 :: 06:19 PM EST (UTC: 23:19 UTC)

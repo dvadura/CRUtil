@@ -1,17 +1,17 @@
-/** \class  CRTimer
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  CRTimer
  *
- * \brief   A wraper for time
+ * @brief   A wrapper for time
  *
- * \details Uses nanosecond precision time to do things like delay, time,
+ * @details Uses nanosecond precision time to do things like delay, time,
  *          and convert to GMT.
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the 
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __CRTIMERS_INC__

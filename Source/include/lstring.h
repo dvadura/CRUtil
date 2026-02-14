@@ -1,8 +1,13 @@
-/** \class  lstring
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  lstring
  *
- * \brief   Compile-time string obfuscation via XOR encoding.
+ * @brief   Compile-time string obfuscation via XOR encoding.
  *
- * \details String literals are XOR-encoded at compile time using Obfuscate::encode(),
+ * @details String literals are XOR-encoded at compile time using Obfuscate::encode(),
  *          producing an lstring<N> whose data array contains only the encoded bytes.
  *          The original plaintext never appears in the binary. At runtime, call
  *          Obfuscate::decode() to recover the original string into a caller-supplied
@@ -27,13 +32,8 @@
  *
  *             https://sourceforge.net/p/constexprstr/code/HEAD/tree/main.cpp#l25
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- * 
- * \license You can obtain and redistribute or modify this program under the 
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __LSTRING_INC__

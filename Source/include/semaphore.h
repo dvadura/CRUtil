@@ -1,12 +1,17 @@
-/** \class  Semaphore
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  Semaphore
  *
- * \brief   A fundamentally simple semaphore wrapper
+ * @brief   A fundamentally simple semaphore wrapper
  *
- * \details Implements P() and V() operations using a pthread_mutex. Thereby
+ * @details Implements P() and V() operations using a pthread_mutex. Thereby
  *          freeing people from the mundane task of typing all the mutex
  *          code.
  *
- * \par     DEBUG vs Release Behavior
+ * @par     DEBUG vs Release Behavior
  *
  *          In DEBUG builds, use the PP/VV macros instead of calling P()/V()
  *          directly.  PP and VV automatically capture __FILE__, __METHOD_NAME__,
@@ -17,7 +22,7 @@
  *          destroy, and record a full acquisition history string (m_where) that
  *          is included in exception messages.
  *
- * \par     SEMTRACE
+ * @par     SEMTRACE
  *
  *          When compiled with both -DDEBUG and -DSEMTRACE, every PP/VV call
  *          is recorded in a global trace ring via semtraceadd().  Each entry
@@ -26,13 +31,8 @@
  *          to dump the collected trace -- invaluable for diagnosing lock
  *          contention and ordering issues in multi-threaded code.
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __SEMAPHORE_INC__

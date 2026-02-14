@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @file crstring.cpp
+ *  @brief Implementation of safe C-string manipulation utilities
+ *
+ *  @details Provides implementations for the CRS class methods defined in crstring.h.
+ *           See crstring.h for full API documentation and usage examples.
+ */
+
 #include "crexception.h"
 #include "crstring.h"
 

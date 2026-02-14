@@ -1,20 +1,20 @@
-/** \brief  A 256-bit unsigned integer built on pair<uint128_t, uint128_t>
+/*
+ * Copyright (c) 2016-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @brief  A 256-bit unsigned integer built on pair<uint128_t, uint128_t>
  *
- * \note    Requires C++17 or later.  See bigint128.h for normative compile flags.
+ * @note    Requires C++17 or later.  See bigint128.h for normative compile flags.
  *
- * \details Provides uint256_t as a specialization of pair<uint128_t, uint128_t>.
+ * @details Provides uint256_t as a specialization of pair<uint128_t, uint128_t>.
  *          All operations delegate to the 128-bit m_hi/m_lo sub-objects, which
  *          are already endian-safe via the W* macros in bigint128.h.  No raw
  *          byte/word overlay arrays are needed — there are no 256-bit intrinsics
  *          to union-pun against.
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2016 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __BIGINT256_INC__
