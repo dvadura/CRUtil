@@ -62,7 +62,7 @@
                wrapper: [[], ['Tar', 'Gzip']],
             },
             // Test binary, debug only
-            {  archetype: 'Library',
+            {  archetype: 'Binary',
                'build!': ['Debug'],
                flavor: [['CLang', 'Test']],
             },
