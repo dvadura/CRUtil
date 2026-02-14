@@ -1,4 +1,25 @@
 ===============================================================================================
+# Fix security issues: buffer overflow checks and type safety
+
+February 14, 2026 :: 01:30 PM EST (UTC: 18:30 UTC)
+
+Fixed several security and correctness issues identified during code audit of
+include headers and string manipulation functions.
+
+1. **crstring.cpp buffer overflow prevention** — Fixed unsigned integer underflow
+   in _strncpy() by checking if size == 0 before arithmetic, preventing
+   implementation-defined behavior when casting underflowed value to signed int.
+   Added explicit overflow check in add() to prevent arithmetic underflow when
+   calculating remaining buffer space.
+
+2. **ainteger.h type safety** — Changed pre_add() and pre_sub() return types from
+   uint64_t to int64_t to match the underlying atomic<int64_t> type, eliminating
+   confusing signed-to-unsigned reinterpretation for negative values.
+
+3. **ainteger.h const correctness** — Added const qualifier to uint64() method
+   since it doesn't modify state, allowing use with const AInteger objects.
+
+===============================================================================================
 # Improve header documentation for readability and Doxygen compatibility
 
 February 14, 2026 :: 01:00 PM EST (UTC: 18:00 UTC)

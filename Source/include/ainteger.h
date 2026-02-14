@@ -112,15 +112,15 @@ namespace crutil {
          return *this;
       }
 
-      inline uint64_t pre_add(const AInteger& delta) {
-         return (uint64_t) m_value.fetch_add(delta.m_value.load());
+      inline int64_t pre_add(const AInteger& delta) {
+         return m_value.fetch_add(delta.m_value.load());
       }
 
-      inline uint64_t pre_sub(const AInteger& delta) {
-         return (uint64_t) m_value.fetch_sub(delta.m_value.load());
+      inline int64_t pre_sub(const AInteger& delta) {
+         return m_value.fetch_sub(delta.m_value.load());
       }
 
-      uint64_t uint64() {
+      uint64_t uint64() const {
          return (uint64_t) m_value.load();
       }
 
