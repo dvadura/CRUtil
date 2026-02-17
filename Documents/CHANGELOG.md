@@ -1,4 +1,80 @@
 ===============================================================================================
+# Fix critical race condition in Semaphore portable tracking (macOS DEBUG builds)
+
+February 17, 2026 :: 4:10 PM EST (UTC: February 17, 2026 21:10 UTC)
+
+Fixed a critical race condition bug in the Semaphore class that caused spurious EBUSY exceptions
+in multi-threaded code on macOS DEBUG builds. The bug manifested in CList concurrent tests where
+multiple threads attempting to acquire a lock would fail with "acquire semaphore, err=16(EBUSY)"
+even though the lock was available.
+
+## Root Cause
+
+On macOS, the Semaphore class uses portable tracking (`__SEM_PORTABLE_TRACKING__`) because pthread's
+internal mutex state is not accessible. The code manually tracks `__sem_m_owner` (lock owner thread ID)
+and `__sem_m_depth` (recursive lock depth).
+
+The bug: In the V() release method, the code properly decremented `__sem_m_depth` to 0 when fully
+releasing the lock, but **never cleared `__sem_m_owner` back to 0**. This left stale thread ID data.
+
+In the P() acquisition method at line 274, there's a critical check:
+```cpp
+if (result == EBUSY && tid != __sem_m_owner && trylock == false) {
+    result = pthread_mutex_lock(&m_mutex);
+}
+```
+
+This check determines whether to call blocking `pthread_mutex_lock()` or to skip it and throw an
+exception. With stale `__sem_m_owner` data, a thread could attempt to acquire a lock held by another
+thread, but if `__sem_m_owner` still matched the current thread's TID from a previous lock cycle,
+the condition would be false, the blocking call would be skipped, and EBUSY would be thrown as an
+exception.
+
+## Race Condition Scenario
+
+1. Thread A acquires lock: `__sem_m_owner = A`, `depth = 1`
+2. Thread A releases lock: `depth = 0`, mutex unlocked, **but `__sem_m_owner` still = A**
+3. Thread B acquires and releases: `__sem_m_owner = B` (stale)
+4. Thread B tries to acquire while Thread C holds lock:
+   - trylock returns EBUSY (C holds it)
+   - Checks `tid_B != __sem_m_owner_B` → FALSE (stale data!)
+   - Doesn't call pthread_mutex_lock()
+   - Exception thrown: "acquire semaphore, err=16(EBUSY)"
+
+## Fix
+
+**Source/include/semaphore.h (lines 367-381):**
+
+Added code to clear `__sem_m_owner` to 0 when the lock is fully released:
+
+For recursive mutexes:
+```cpp
+if (m_recursive == true) {
+    __sem_m_depth -= 1;
+    if (__sem_m_depth == 0) {
+        __sem_m_owner = 0;  // Clear owner when fully released
+    }
+}
+```
+
+For non-recursive mutexes:
+```cpp
+else {
+    __sem_m_depth = 0;
+    __sem_m_owner = 0;  // Clear owner when released
+}
+```
+
+## Verification
+
+All 1136 assertions in 233 test cases pass, including all CList concurrent tests:
+- CList concurrent push_back operations (10 threads × 100 items)
+- CList concurrent push_front operations
+- CList concurrent mixed push/pop operations
+- CList producer-consumer with waitFor
+- CList multiple consumers with waitFor
+
+===============================================================================================
 # Fix transient segfault in Condition() creation - Complete SEMTRACE buffer initialization
 
 February 17, 2026 :: 10:10 AM EST (UTC: February 17, 2026 10:10 UTC)
