@@ -1,4 +1,49 @@
 ===============================================================================================
+# Fix thread-safety issue in CUSet concurrent test
+
+February 17, 2026 :: 4:20 PM EST (UTC: February 17, 2026 21:20 UTC)
+
+Fixed segmentation fault and garbled output in "CUSet concurrent size queries" test caused by
+using Catch2's REQUIRE macro from multiple threads simultaneously.
+
+## Problem
+
+The test spawned 10 reader threads that each called `REQUIRE((size == 0) == empty)` in a tight loop.
+Catch2's assertion macros are **not thread-safe** - when called concurrently from multiple threads,
+they corrupt Catch2's internal state (`m_sectionStack`), leading to:
+- Garbled/interleaved test output
+- Assertion failures: "Assertion failed: (!m_sectionStack.empty())"
+- SIGSEGV segmentation faults
+
+## Solution
+
+**Test/test_cuset.cpp (line 521-559):**
+
+Changed the test to track consistency failures in an atomic counter instead of calling REQUIRE
+from within the reader threads:
+
+```cpp
+std::atomic<int> consistency_failures{0};
+
+// Inside reader thread lambda:
+if ((size == 0) != empty) {
+    consistency_failures.fetch_add(1);
+}
+
+// After all threads join (thread-safe):
+REQUIRE(consistency_failures == 0);
+```
+
+This is the correct pattern for multi-threaded tests with Catch2 - accumulate results in the
+threads, then assert after joining.
+
+## Verification
+
+- Test now runs reliably without crashes
+- All 2236 assertions in 273 test cases pass
+- Verified with 5 consecutive runs without failures
+
+===============================================================================================
 # Fix critical race condition in Semaphore portable tracking (macOS DEBUG builds)
 
 February 17, 2026 :: 4:10 PM EST (UTC: February 17, 2026 21:10 UTC)

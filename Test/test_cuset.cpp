@@ -522,6 +522,7 @@ TEST_CASE("CUSet concurrent size queries", "[cuset][threaded]") {
    CUSet<int> set;
    const int NUM_THREADS = 10;
    std::atomic<bool> stop{false};
+   std::atomic<int> consistency_failures{0};
 
    // Writer thread
    std::thread writer([&set, &stop]() {
@@ -535,12 +536,14 @@ TEST_CASE("CUSet concurrent size queries", "[cuset][threaded]") {
    // Reader threads
    std::vector<std::thread> readers;
    for (int t = 0; t < NUM_THREADS; ++t) {
-      readers.emplace_back([&set, &stop]() {
+      readers.emplace_back([&set, &stop, &consistency_failures]() {
          while (!stop) {
             size_t size = set.size();
             bool empty = set.empty();
-            // Consistency check
-            REQUIRE((size == 0) == empty);
+            // Consistency check - track failures instead of using REQUIRE in thread
+            if ((size == 0) != empty) {
+               consistency_failures.fetch_add(1);
+            }
             std::this_thread::yield();
          }
       });
@@ -555,7 +558,8 @@ TEST_CASE("CUSet concurrent size queries", "[cuset][threaded]") {
       reader.join();
    }
 
-   REQUIRE(true); // If we get here, no data races detected
+   // Assert after all threads have joined (thread-safe)
+   REQUIRE(consistency_failures == 0);
 }
 
 // =============================================================================
