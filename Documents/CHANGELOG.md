@@ -1,4 +1,90 @@
 ===============================================================================================
+# Fix critical CList thread-safety bugs and modernize to C++17
+
+February 16, 2026 :: 08:00 PM EST (UTC: February 17, 2026 01:00 UTC)
+
+Fixed 4 critical bugs causing undefined behavior in multithreaded code, along with
+several high-severity issues. Modernized CList to C++17 standards and created
+comprehensive test suite with 49 test cases covering all operations including
+thread-safety scenarios.
+
+## Critical Bug Fixes
+
+1. **Dangling reference bug in front() and back()** — Changed return type from `T&`
+   to `T` (return by value). Previously returned references to internal deque elements
+   after releasing the lock, creating dangling references that could be invalidated
+   by other threads. Now safely returns copies for thread safety.
+
+2. **Removed unsafe operator[]** — Deleted `operator[]` method entirely (lines 344-356).
+   Random access with unlocked iterator return created dangling references and doesn't
+   make sense for a concurrent queue abstraction.
+
+3. **Removed unlocked iterator methods** — Deleted `begin()` and `end()` methods
+   (lines 358-364). Iterators are fundamentally unsafe in concurrent context without
+   lock protection that would defeat the purpose of this class.
+
+4. **Fixed unsafe memset() on non-POD types** — Replaced `memset(&result, '\0', sizeof(T))`
+   with `return T{};` in `remove_front()` and `remove_back()` (lines 158, 180). The
+   memset corrupted non-POD types (std::string, std::vector, any class with constructors).
+   Now uses proper C++11 value initialization.
+
+5. **Fixed race condition in waitFor()** — Added lock protection before empty check
+   (lines 276-282). Previously had check-then-act race between `m_data.empty()` check
+   and `waitFor()` call. Now acquires lock, checks emptiness, releases lock before
+   conditionally waiting.
+
+## High-Priority Fixes
+
+6. **Added missing includes** — Added `#include <deque>` and `#include <algorithm>`
+   (after line 26). Previously relied on transitive includes which is fragile.
+
+7. **Fixed namespace inconsistency** — Changed from `namespace crunnable` to
+   `namespace crutil` (line 30) to match rest of project (condition.h, semaphore.h).
+
+8. **Added std:: qualifications** — Changed `deque<T>` to `std::deque<T>` throughout
+   (lines 35, 256) to avoid relying on implicit using declarations.
+
+9. **Fixed macro name conflict** — Renamed `LIST_EMPTY` to `CLIST_EMPTY` to avoid
+   conflict with system macro in sys/queue.h on macOS.
+
+## C++17 Modernization
+
+10. **Added [[nodiscard]] attributes** — Added to `size()`, `empty()`, `front()`,
+    `back()`, `remove_front()`, `remove_back()`, `pfpb()`, `waitFor()` to catch
+    common usage errors at compile time.
+
+11. **Updated header documentation** — Replaced old-style documentation with proper
+    Doxygen format including @file, @class, @tparam tags. Updated copyright to
+    2010-2026. Changed URL to https://github.com/dvadura/CRUtil. Added detailed
+    warnings about thread-safety guarantees and why certain methods were removed.
+
+## Testing
+
+12. **Created comprehensive Catch2 test suite** — New file `Test/test_clist.cpp` with
+    49 test cases and 107 assertions covering:
+    - Basic lifecycle (constructors, move semantics)
+    - Size and empty state tracking
+    - Push/pop operations (front/back)
+    - Remove operations with exception handling
+    - PFPB (pop-front-push-back) rotation
+    - Splice operations
+    - Remove by value
+    - Clear operations
+    - WaitFor timeout and signaling
+    - Freeze/thaw locking
+    - Move assignment
+    - Thread safety (concurrent push/pop, producer-consumer patterns)
+    - Pointer and string storage
+
+All tests pass successfully. Migrated from old GTest-based tests and added new
+thread-safety tests using std::thread to verify concurrent operation correctness.
+
+## Files Modified
+
+- Source/include/clist.h — Bug fixes, modernization, documentation updates
+- Test/test_clist.cpp — NEW comprehensive Catch2-based test suite
+
+===============================================================================================
 # Fix Semaphore recursive mutex depth tracking on macOS DEBUG builds
 
 February 16, 2026 :: 03:45 PM EST (UTC: 20:45 UTC)
