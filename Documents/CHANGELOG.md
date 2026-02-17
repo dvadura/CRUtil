@@ -1,4 +1,31 @@
 ===============================================================================================
+# Expand AInteger test coverage for atomic operations
+
+February 16, 2026 :: 10:00 AM EST (UTC: 15:00 UTC)
+
+Expanded test coverage for AInteger class to include previously untested atomic
+operations and utility methods, improving overall method coverage from 54% to 89%.
+
+1. **Atomic clamping operations** — Added tests for floor() and ceiling() methods
+   that atomically ensure values stay within bounds.
+
+2. **Fetch operations** — Added tests for pre_add() and pre_sub() which return
+   the old value before modification (fetch-and-add/sub semantics).
+
+3. **Exchange operation** — Added test for gas() (get-and-set) which atomically
+   swaps the value and returns the old one.
+
+4. **Alternative CAS interface** — Added test for test_and_set() method which
+   provides boolean return semantics for compare-and-swap.
+
+5. **Type conversion** — Added test for uint64() method including verification
+   of signed-to-unsigned wrapping for negative values.
+
+6. **Direct setter** — Added test for set() method with chaining verification.
+
+New test cases: 8 additional tests covering 10 previously untested methods.
+
+===============================================================================================
 # Fix security issues: buffer overflow checks and type safety
 
 February 14, 2026 :: 01:30 PM EST (UTC: 18:30 UTC)
