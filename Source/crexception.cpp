@@ -15,6 +15,9 @@
 
 #include "crexception.h"
 #include "crtimer.h"
+#ifdef SEMTRACE
+#include "semaphore.h"
+#endif
 
 using namespace crutil;
 

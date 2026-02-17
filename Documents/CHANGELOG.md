@@ -1,4 +1,70 @@
 ===============================================================================================
+# Fix transient segfault in Condition() creation - Complete SEMTRACE buffer initialization
+
+February 17, 2026 :: 10:10 AM EST (UTC: February 17, 2026 10:10 UTC)
+
+Fixed transient segmentation fault in Condition object creation when compiled with both -DDEBUG
+and -DSEMTRACE. The previous fix (commit c714318) was incomplete - it fixed the DEBUG-mode buffers
+but missed two additional uninitialized buffers in the SEMTRACE sections.
+
+## Root Cause
+
+When compiled with -DDEBUG -DSEMTRACE, Semaphore's P() and V() methods create local buffers for
+trace messages that are passed to CRSnprintf(). The function internally calls CRS::_strncpy()
+which scans for a null terminator in the destination buffer:
+
+```cpp
+for (; *dst != '\0' && size > 0; ++dst, --size);
+```
+
+Reading uninitialized memory causes undefined behavior and transient segmentation faults.
+
+## Locations Fixed
+
+**Source/include/semaphore.h:**
+- Line 280: SEMTRACE buffer in P() method - initialized `buf[200]` to empty string
+- Line 408: SEMTRACE buffer in V() method - initialized `buf[200]` to empty string
+
+Changed from:
+```cpp
+{ char buf[200];
+  CRSnprintf(buf, "P from %s::%s:%d", file, meth, line);
+  SEMTRACE(this,1,now.diff(),buf); }
+```
+
+To:
+```cpp
+{ char buf[200] = "";
+  CRSnprintf(buf, "P from %s::%s:%d", file, meth, line);
+  SEMTRACE(this,1,now.diff(),buf); }
+```
+
+## Additional Improvements
+
+**Source/include/condition.h:**
+- Lines 198-199: Initialize m_fired and m_waiters in default constructor
+- Lines 209-210: Initialize m_fired and m_waiters in named constructor
+
+This follows RAII principles by ensuring all member variables are initialized in the constructor
+initializer list, rather than only when enable() is called.
+
+**Source/crexception.cpp:**
+- Added conditional include for semaphore.h when SEMTRACE is defined
+- Required for Trace struct definition used in semtrace functions
+
+## Testing
+
+Compiled and ran tests with -DDEBUG -DSEMTRACE flags:
+- 10 consecutive runs of condition tests: all passed without segfaults
+- Full test suite: all 1029 assertions in 184 test cases passed
+
+## Notes
+
+This completes the work started in commit c714318. The pattern is consistent: all local buffers
+passed to CRStrcpy/CRSnprintf must be initialized with `= ""` to avoid reading uninitialized
+memory in the string length calculation.
+
+===============================================================================================
 # Fix critical segfault in Semaphore DEBUG tracking
 
 February 17, 2026 :: 1:58 PM EST (UTC: February 17, 2026 18:58 UTC)

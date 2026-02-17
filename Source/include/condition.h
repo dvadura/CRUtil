@@ -195,7 +195,8 @@ namespace crutil {
        * @param[in] bflag=false indicate if raise events are broadcast, default is false.
        * @param[in] dflag=true  indicates a debug flag, used to figure out why conditionals fail.
        */
-      Condition(const bool bflag=false, const bool dflag=false) : m_sem(false,false), m_enabled(false)
+      Condition(const bool bflag=false, const bool dflag=false)
+         : m_sem(false,false), m_enabled(false), m_fired(0), m_waiters(0)
       {
 #ifdef COND_DEBUG
          m_debug = dflag;
@@ -206,7 +207,8 @@ namespace crutil {
          enable();
       }
 
-      Condition(const char* tag, const bool bflag=false, const bool dflag=false) : m_sem(false,false), m_enabled(false)
+      Condition(const char* tag, const bool bflag=false, const bool dflag=false)
+         : m_sem(false,false), m_enabled(false), m_fired(0), m_waiters(0)
       {
 #ifdef COND_DEBUG
          m_debug = dflag;

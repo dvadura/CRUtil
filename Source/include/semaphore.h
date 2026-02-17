@@ -277,7 +277,7 @@ namespace crutil {
          }
 
 #ifdef SEMTRACE
-         { char buf[200];
+         { char buf[200] = "";
            CRSnprintf(buf, "P from %s::%s:%d", file, meth, line);
            SEMTRACE(this,1,now.diff(),buf); }
 #endif
@@ -405,7 +405,7 @@ namespace crutil {
          }
 
 #ifdef SEMTRACE
-         { char buf[200];
+         { char buf[200] = "";
            CRSnprintf(buf, "V from %s::%s:%d", file, meth, line);
            SEMTRACE(this,0,now.diff(),buf); }
 #endif
