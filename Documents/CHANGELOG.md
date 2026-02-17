@@ -1,4 +1,54 @@
 ===============================================================================================
+# Fix critical segfault in Semaphore DEBUG tracking
+
+February 17, 2026 :: 1:58 PM EST (UTC: February 17, 2026 18:58 UTC)
+
+Fixed segmentation fault that occurred when running unit tests in DEBUG mode. The bug was
+caused by reading uninitialized memory in the Semaphore P() and V() debug tracking code.
+
+## Root Cause
+
+In DEBUG builds, Semaphore::P() and Semaphore::V() maintain a debug trace by copying the
+previous m_where buffer contents to a temporary buffer before writing new tracking info.
+The temporary buffer was declared but not initialized:
+
+```cpp
+char tmp[WHERE_BUFSIZE];        // UNINITIALIZED!
+CRStrcpy(tmp, m_where);          // Calls CRS::_strncpy
+```
+
+The CRS::_strncpy() implementation (crstring.cpp:86) attempts to find the existing null
+terminator in the destination buffer before copying:
+
+```cpp
+for (; *dst != '\0' && size > 0; ++dst, --size);
+```
+
+Reading from uninitialized tmp caused undefined behavior, leading to crashes when creating
+Condition objects (first failing test: test_condition.cpp:16 "Condition default create
+and destroy").
+
+## Fix Applied
+
+Initialize tmp buffers to empty strings in both locations:
+- Source/include/semaphore.h:332 (in Semaphore::P)
+- Source/include/semaphore.h:412 (in Semaphore::V)
+
+Changed from:
+```cpp
+char tmp[WHERE_BUFSIZE];
+```
+
+To:
+```cpp
+char tmp[WHERE_BUFSIZE] = "";
+```
+
+## Testing
+
+All 296 unit tests now pass in DEBUG mode (85,801 assertions).
+
+===============================================================================================
 # Reorganize source files: Split semaphore.cpp into class-specific files
 
 February 17, 2026 :: 1:30 AM EST (UTC: February 17, 2026 06:30 UTC)

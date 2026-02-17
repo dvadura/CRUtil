@@ -329,7 +329,7 @@ namespace crutil {
 #endif
 
 #ifdef DEBUG
-         char tmp[WHERE_BUFSIZE];
+         char tmp[WHERE_BUFSIZE] = "";
          CRStrcpy(tmp, m_where);
          CRSnprintf(m_where, "++ [%6d:%s(%lu)] %s:%d,%s - depth=%d\n%s", CRX_GETTID(), getVerbose(), this, file, line, meth, __sem_m_depth, tmp);
 
@@ -409,7 +409,7 @@ namespace crutil {
            CRSnprintf(buf, "V from %s::%s:%d", file, meth, line);
            SEMTRACE(this,0,now.diff(),buf); }
 #endif
-         char tmp[WHERE_BUFSIZE];
+         char tmp[WHERE_BUFSIZE] = "";
          CRStrcpy(tmp, m_where);
          CRSnprintf(m_where, "-- [%06d:%s(%lu)] %s:%d,%s - depth=%d\n%s", CRX_GETTID(), getVerbose(), this, file, line, meth,  __sem_m_depth, tmp);
 
