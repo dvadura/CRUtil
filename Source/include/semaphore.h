@@ -321,6 +321,10 @@ namespace crutil {
 #endif
          }
 #ifdef __SEM_PORTABLE_TRACKING__
+         // For recursive mutexes with portable tracking, manually increment depth
+         else if (m_recursive == true) {
+            __sem_m_depth += 1;
+         }
          __sem_m_owner = CRX_GETTID();
 #endif
 
@@ -360,11 +364,21 @@ namespace crutil {
 
          m_prev_thread_id = __sem_m_owner;
 #endif
+#ifdef __SEM_PORTABLE_TRACKING__
+         // For portable tracking, manually update depth for both types
+         if (m_recursive == true) {
+            __sem_m_depth -= 1;  // Decrement for next call
+         } else {
+            __sem_m_depth = 0;   // Reset for next call
+         }
+#else
+         // Platform with native depth tracking - only manage non-recursive
          if (m_recursive == false) {
 #ifdef __sem_m_depth
             __sem_m_depth = 0;
 #endif
          }
+#endif
 
 #ifdef DEBUG
 #ifdef SEMTRACE

@@ -1,4 +1,34 @@
 ===============================================================================================
+# Fix Semaphore recursive mutex depth tracking on macOS DEBUG builds
+
+February 16, 2026 :: 03:45 PM EST (UTC: 20:45 UTC)
+
+Fixed a critical bug in Semaphore class where recursive mutexes failed on macOS (and any
+platform using portable tracking) in DEBUG builds due to missing depth tracking.
+
+**Root cause:** Platforms without direct access to pthread mutex internals (macOS, BSD)
+use manual depth tracking via `m_sem_depth`. The P() and V() methods only updated this
+field for non-recursive mutexes, leaving it at 0 for recursive mutexes. This caused V()
+to always throw EPERM exceptions even on valid unlock operations.
+
+**Solution:** Added manual depth increment/decrement for recursive mutexes when using
+portable tracking (`__SEM_PORTABLE_TRACKING__`):
+
+1. **P() method (line 323-327)** — Added depth increment for recursive mutexes to match
+   pthread's automatic tracking on GNU/Linux platforms.
+
+2. **V() method (line 367-381)** — Replaced simple non-recursive depth reset with proper
+   conditional logic that decrements depth for recursive mutexes and resets for
+   non-recursive, with platform-specific handling.
+
+**Impact:** Fixes all semaphore tests on macOS DEBUG builds. Recursive mutex depth now
+correctly tracks nested lock/unlock operations (1→2→1→0). Non-recursive mutexes continue
+to work as before. Release builds unaffected (no depth validation).
+
+**Files modified:**
+- Source/include/semaphore.h
+
+===============================================================================================
 # Expand AInteger test coverage for atomic operations
 
 February 16, 2026 :: 10:00 AM EST (UTC: 15:00 UTC)
