@@ -70,6 +70,10 @@ tests:
   - 'test_crstring.cpp'
   - 'test_crtimer.cpp'
   - 'test_lstring.cpp'
+  - 'test_semaphore.cpp'
+  - 'test_clist.cpp'
+  - 'test_rqlist.cpp'
+  - 'test_cuset.cpp'
 
 test___.cpp:
   adir: '{BIF_PRJ_TESTDIR}'
@@ -135,6 +139,9 @@ objects:
   adir: '{CLANG_OBJDIR}'
   needs:
   - 'crstring.o'
+  - 'crexception.o'
+  - 'semaphore.o'
+  - 'condition.o'
 
 _.o:
   adir: '{CLANG_OBJDIR}'

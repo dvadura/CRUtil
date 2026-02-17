@@ -1,4 +1,324 @@
 ===============================================================================================
+# Reorganize source files: Split semaphore.cpp into class-specific files
+
+February 17, 2026 :: 1:30 AM EST (UTC: February 17, 2026 06:30 UTC)
+
+Broke up the monolithic Source/semaphore.cpp file into three class-specific implementation
+files (crexception.cpp, semaphore.cpp, condition.cpp) for better code organization and
+maintainability. Each file now contains only the static member initializers relevant to
+its corresponding class, plus semtrace debug functions moved to crexception.cpp where they
+logically belong.
+
+## Files Created
+
+1. **Source/crexception.cpp** - New file containing:
+   - CRException static member initializers (s_tmap, s_tlock)
+   - semtraceadd() and semtracedump() implementations (moved from old semaphore.cpp)
+   - SEMTRACE debug ring buffer for post-mortem deadlock debugging
+
+2. **Source/condition.cpp** - New file containing:
+   - Condition static member initializers (CONDKEY, SEMCONDKEY, CONDKEY_INIT)
+   - Thread-specific data management variables
+
+3. **Source/semaphore.cpp** - Updated file containing:
+   - Only Semaphore static member initializers (VERBTAG)
+   - Changed NULL to nullptr for modernization
+
+## Build System Updates
+
+- Updated imap.yml `objects:` section to include new .o files:
+  - crexception.o
+  - semaphore.o
+  - condition.o
+  - (crstring.o already existed)
+
+## Rationale
+
+The original semaphore.cpp contained static initializers for three unrelated classes
+(CRException, Semaphore, Condition), making it unclear where initialization code
+belonged. The new structure follows single-responsibility principle:
+
+- **crexception.cpp**: Exception handling and debug tracing
+- **semaphore.cpp**: Semaphore/mutex primitives
+- **condition.cpp**: Condition variable primitives
+
+This improves:
+- Code discoverability (initialization code is with the class it initializes)
+- Build clarity (each class has its own compilation unit)
+- Maintainability (changes to one class don't affect others)
+
+## Test Updates
+
+1. **Test/test_main.cpp** - Removed static variable definitions that are now in proper .cpp files.
+   The old test_main.cpp had inline definitions because "they aren't in the library yet" - now they are.
+
+2. **Test/test_semaphore.cpp** - Fixed test compatibility:
+   - Wrapped DEBUG-only tests in `#ifdef DEBUG` (double P() detection requires trylock)
+   - "Semaphore non-recursive double P() throws" - DEBUG only
+   - "Semaphore non-recursive verbose error dump" - DEBUG only
+   - Updated "verbose tag get/set" test to explicitly set VERBTAG = "SEM" for testing
+
+3. **Source/semaphore.cpp** - Kept `Semaphore::VERBTAG = nullptr` (production default).
+   Tests that need verbosity explicitly set VERBTAG in their test scope.
+
+## Notes
+
+- semtraceadd/semtracedump declarations remain in semaphore.h (extern declarations)
+- No functional changes - only file reorganization
+- VERBTAG defaults to nullptr (no verbosity in production)
+- DEBUG build: 12 semaphore tests (includes double-lock detection tests)
+- Non-DEBUG build: 10 semaphore tests (2 DEBUG-only tests skipped)
+- All 298 test cases work correctly with new structure
+- Manual compilation: `g++ [-DDEBUG] ... crexception.cpp semaphore.cpp condition.cpp ...`
+
+===============================================================================================
+# Fix critical CUSet bugs and modernize to C++17
+
+February 17, 2026 :: 12:30 AM EST (UTC: February 17, 2026 05:30 UTC)
+
+Fixed 11 critical and high-severity bugs in CUSet causing thread-safety violations, namespace
+inconsistencies, and unsafe iterator exposure. Deleted fundamentally unsafe iterator methods,
+fixed race conditions in move operations and query methods, corrected header guard and namespace
+errors. Modernized to C++17 standards with [[nodiscard]] attributes and updated documentation.
+Created comprehensive test suite with 40 test cases including thread-safety validation.
+
+## Critical Bug Fixes
+
+1. **Unsafe iterator exposure (CRITICAL)** — Deleted begin() and end() methods (lines 215-221).
+   These methods returned iterators without holding locks, creating use-after-free vulnerabilities
+   when other threads modify the set. Iterators can't be made safe without external locking,
+   which would create deadlock risks. Added documentation explaining why iterators were removed
+   and suggesting freeze/thaw or data copying alternatives.
+
+2. **Race condition in waitFor() (CRITICAL)** — Fixed check-then-act race (lines 120-127).
+   Previously checked m_data.empty() without lock, then called m_notempty.waitFor(). Another
+   thread could remove all data between check and wait, causing spurious wakeups. Now wraps
+   empty check in PP/VV for atomic check-then-wait.
+
+3. **Dangerous move constructor (CRITICAL)** — Fixed to lock source object (lines 50-55).
+   Previously moved list.m_data without locking source, creating data race if another thread
+   accessed source during move. Restructured to lock source before moving data.
+
+4. **Dangerous move assignment (CRITICAL)** — Added self-assignment check and removed unsafe
+   source modifications (lines 202-213). Previously lacked self-assignment check and modified
+   source's condition after move (potential use-after-free if source destroyed by other thread).
+   Now checks `if (this == &lst)` and doesn't touch source's condition.
+
+5. **Unprotected size() method (HIGH)** — Added PP/VV locking and [[nodiscard]] (lines 67-69).
+   Previously const method accessed m_data.size() without lock, violating thread-safe API
+   contract. Removed const qualifier and wrapped in lock. Returns point-in-time snapshot that
+   may be stale immediately.
+
+6. **Unprotected empty() method (HIGH)** — Added PP/VV locking and [[nodiscard]] (lines 72-74).
+   Previously called unprotected size() method (double-unsafe). Now directly checks m_data.empty()
+   under lock. Removed const qualifier.
+
+7. **Unprotected contains() method (HIGH)** — Added PP/VV locking and [[nodiscard]] (lines 146-148).
+   Previously performed find() on m_data without lock. Element could be removed between find()
+   and return. Now wraps entire operation in lock.
+
+8. **Exception safety in splice() (HIGH)** — Added try-catch to ensure source cleared (lines 100-105).
+   If insert() throws during splice, items were partially transferred with no rollback and source
+   not cleared. Now ensures lst.m_data.clear() happens even on exception using try-catch-rethrow.
+
+9. **Wrong header guard (HIGH)** — Changed __CDLIST_INC__ to __CUSET_INC__ (lines 17-18).
+   Header guard incorrectly named __CDLIST_INC__ (copy-paste from clist.h) could cause build
+   issues if both headers included. Fixed to __CUSET_INC__.
+
+10. **Wrong namespace (HIGH)** — Changed namespace crunnable to crutil (line 25, throughout).
+    Used namespace crunnable instead of crutil, inconsistent with CList, RQList, Condition,
+    Semaphore which all use crutil. Updated all references.
+
+11. **Missing std:: qualification** — Changed unordered_set<T> to std::unordered_set<T> (line 30).
+    Used unqualified unordered_set instead of std::unordered_set, could fail in some build
+    configurations.
+
+## C++17 Modernization
+
+- Added [[nodiscard]] attributes to size(), empty(), contains(), remove_front(), remove(),
+  waitFor(), freeze() to prevent ignoring return values
+- Changed NULL to nullptr in constructor parameters (tag=nullptr)
+- Updated header documentation to Doxygen format (@file, @class, @brief, @details, @copyright)
+- Updated copyright to 2010-2026
+- Updated URL to https://github.com/dvadura/CRUtil
+- Added detailed thread-safety warnings in header documentation
+- Documented iterator removal rationale
+
+## Additional Improvements
+
+- Fixed remove_front() to directly erase instead of calling remove() (avoid double-locking)
+- Improved method documentation with thread-safety notes
+- Added exception safety documentation
+- Clarified return value semantics (point-in-time snapshots)
+
+## Test Suite
+
+Created comprehensive Test/test_cuset.cpp with 40 test cases (75,871 assertions):
+
+**Basic operations**: Constructor variants, size/empty consistency, add/remove, contains
+**Set semantics**: Duplicate handling, splice with duplicates
+**Thread safety**: Concurrent add (10 threads × 100 items), concurrent add/remove (1000 ops),
+concurrent contains checks (5 threads × 1000 checks), concurrent size queries
+**Type safety**: int, std::string, pointers
+**Exception safety**: Remove on empty, remove_front on empty
+**Special operations**: Splice, move assignment, freeze/thaw, waitFor timeout/immediate
+
+All tests pass successfully with no data races or memory corruption detected.
+
+===============================================================================================
+# Fix critical RQList bugs and modernize to C++17
+
+February 16, 2026 :: 11:55 PM EST (UTC: February 16, 2026 23:55 UTC)
+
+Fixed 13 critical and high-severity bugs in RQList causing memory leaks, race conditions,
+ABA problems, and fundamentally broken empty() logic. Completely redesigned the algorithm
+using a state machine approach with proper memory ordering. Modernized to C++17 standards
+and created comprehensive test suite with 25 test cases including thread-safety validation
+for multi-producer single-consumer patterns.
+
+## Critical Bug Fixes
+
+1. **Memory leak in destructor** — Changed `delete m_list` to `delete[] m_list` (line 93).
+   Previously used wrong delete operator for array allocation, causing memory corruption
+   or heap leaks on destruction.
+
+2. **Broken empty() logic** — Completely rewrote empty() (lines 112-118). Previously
+   returned `isUnlocked(&m_list[getRead() % m_size])` which gave inverted results
+   (returned false when size was 0). Now correctly checks if slot at read position
+   is in EMPTY state.
+
+3. **ABA problem in push()** — Eliminated by redesigning algorithm with state machine
+   instead of version counters. Thread increments write counter, checks slot state,
+   but between check and lock another thread could wrap around and reuse the slot.
+   New design uses EMPTY/RESERVED/FILLED states with atomic transitions.
+
+4. **Check-then-act race in push()** — Fixed by using CAS loop instead of unconditional
+   fetch_add(). Previously incrementWrite() before checking slot availability created
+   holes in queue where write pointer advanced even on failed pushes. Now write pointer
+   only advances when slot is successfully claimed.
+
+5. **Race condition in size()** — Fixed by atomic snapshot with documentation that
+   result is approximate (lines 100-108). Previously read m_read and m_write
+   independently without synchronization, giving inconsistent size values during
+   concurrent access.
+
+6. **Non-atomic m_full flag** — Changed `bool m_full` to `atomic<bool> m_full`
+   (line 71). Previously accessed by multiple threads without synchronization,
+   risking deadlock where queue stops accepting data permanently.
+
+7. **Use-after-free in remove()** — Fixed by proper ordering of operations (lines
+   126-161). Previously read element value after unlocking without synchronization,
+   potentially reading stale or corrupted data. Now reads data before marking slot
+   as empty with proper memory ordering.
+
+8. **Uninitialized m_full** — Added initialization in constructor initialization
+   list (line 83). Previously constructor didn't initialize m_full before clear(),
+   causing spurious push failures if threads race during construction.
+
+9. **Type safety - NULL assumptions** — Removed NULL pointer checks (lines 141, 171)
+   and NULL returns. Previously assumed T was pointer type. Now works with value
+   types using T{} for default construction.
+
+10. **Missing memory ordering** — Added explicit memory_order_acquire and
+    memory_order_release throughout. Previously had no explicit memory ordering
+    on atomic operations, making code non-portable to ARM or weak-memory architectures.
+
+11. **Element write not synchronized** — Fixed with release semantics after element
+    write (lines 194-198). Previously `m_list[offset].element = item` was not atomic
+    with lockElement(), so reader could see torn writes or stale values. Now uses
+    memory_order_release to ensure visibility.
+
+12. **Weak include syntax** — Changed `#include "atomic"` to `#include <atomic>`
+    (line 45). Previously relied on compiler quirks for system header lookup.
+
+13. **Namespace inconsistency** — Changed `namespace crunnable` to `namespace crutil`
+    (line 50) to match rest of project (condition.h, semaphore.h, etc.).
+
+## Algorithm Redesign
+
+Completely rewrote push() and remove() using state machine approach:
+
+**Core Design:**
+- Writers atomically reserve slots using global counter (m_write)
+- Each slot has atomic state: EMPTY → RESERVED → FILLED → EMPTY
+- RESERVED state protects against readers accessing incomplete writes
+- Single reader drains from m_read position
+- No ABA problem due to independent slot state machines
+
+**Push algorithm:**
+1. Check if queue would be full (write - read >= size)
+2. Try CAS to advance write pointer
+3. If successful, wait briefly for slot to become EMPTY (handles wrap-around)
+4. Claim slot with EMPTY → RESERVED transition
+5. Write data
+6. Mark FILLED with release semantics
+
+**Remove algorithm:**
+1. Load current read position
+2. Check slot state with acquire semantics
+3. If EMPTY, queue is empty, return
+4. If RESERVED, writer in progress, return (single reader doesn't retry)
+5. If FILLED, read data, mark EMPTY with release, advance read pointer
+
+**Improvements:**
+- Prevents write pointer from lapping read pointer
+- Handles high-concurrency wrap-around scenarios
+- Proper acquire/release semantics for cross-thread visibility
+- No version counters or complex lock schemes needed
+
+## C++17 Modernization
+
+14. **Added [[nodiscard]] attributes** — Added to size(), empty(), push(),
+    push_back(), remove(), remove_front(), waitFor() to catch usage errors
+    at compile time.
+
+15. **Used enum class for state** — Replaced #define E_LOCKED/E_UNLOCKED with
+    proper enum class State : uint64_t { EMPTY, RESERVED, FILLED } for type
+    safety and scoping.
+
+16. **Explicit memory ordering** — All atomic operations now have explicit
+    memory_order parameters: acquire/release for synchronization points,
+    relaxed for counters.
+
+17. **Updated header documentation** — Complete rewrite with Doxygen @file,
+    @class, @tparam, @param, @return tags. Updated copyright to 2010-2026.
+    Changed URL to https://github.com/dvadura/CRUtil. Added detailed
+    algorithm design documentation, thread-safety warnings about single-reader
+    requirement, and memory ordering guarantees.
+
+18. **Template constraints documented** — Documented that T must be copyable
+    and removed assumptions about pointer types.
+
+## Testing
+
+19. **Created comprehensive Catch2 test suite** — New file `Test/test_rqlist.cpp`
+    with 25 test cases and 228 assertions covering:
+    - Basic lifecycle (default constructor, custom size)
+    - Size and empty consistency
+    - Push/pop operations (basic, multiple cycles)
+    - Boundary conditions (fill to capacity, push beyond capacity, wrap-around)
+    - Queue full behavior (detect full, accept after drain, return false when full)
+    - Clear functionality (empties queue, resets state machine)
+    - WaitFor timeout and immediate return
+    - **Thread safety (4 comprehensive tests):**
+      - Multiple writers single reader (4 writers, 1000 items each)
+      - Concurrent push operations (8 threads, 500 items each)
+      - Wrap-around under load (10000 items through 64-slot queue)
+      - Producer-consumer pattern (3 producers, 1 consumer, 2000 items each)
+    - Type safety (pointers, value types, std::string)
+
+All tests pass successfully. Thread safety tests validate correctness under
+high concurrency with up to 8 concurrent writer threads and realistic
+producer-consumer workloads.
+
+## Files Modified
+
+- Source/include/rqlist.h — Complete algorithm redesign, bug fixes, C++17 modernization
+- Source/include/ilflist.h — Updated namespace (crutil) and documentation
+- Source/semaphore.cpp — Updated namespace (crutil) to match headers
+- Test/test_rqlist.cpp — NEW comprehensive Catch2-based test suite
+
+===============================================================================================
 # Fix critical CList thread-safety bugs and modernize to C++17
 
 February 16, 2026 :: 08:00 PM EST (UTC: February 17, 2026 01:00 UTC)
