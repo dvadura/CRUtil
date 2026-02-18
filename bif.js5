@@ -27,6 +27,10 @@
          // If you need to override a config item, or add to one of the configured types.
          // do it here. You should not remove a pre-configured type instead do not include
          // the value in the builds section below.
+
+         flavors : [
+           { name: 'Tbb', tag: 'tbb' },
+         ],
       },
 
       artifacts: {
@@ -55,16 +59,23 @@
          //       and can be safely omitted form the target definition.
          //
          targets:[
+            // Compiled library
+            {  archetype: 'Library',
+               'build!': ['Release'],
+               flavor: ['CLang'],
+            },
+
             // Use Tar+gzip wrappers on non-windows
             {  archetype: 'Library',
                'build!': ['Release'],
                flavor: ['CLang'],
-               wrapper: [[], ['Tar', 'Gzip']],
+               wrapper: [['Tar', 'Gzip']],
             },
+
             // Test binary, debug only
             {  archetype: 'Binary',
                'build!': ['Debug'],
-               flavor: [['CLang', 'Test']],
+               flavor: [['CLang', 'Test'], ['Tbb', 'CLang', 'Test']],
             },
          ],
 

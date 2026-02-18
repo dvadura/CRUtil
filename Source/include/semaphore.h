@@ -1,12 +1,17 @@
-/** \class  Semaphore
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  Semaphore
  *
- * \brief   A fundamentally simple semaphore wrapper
+ * @brief   A fundamentally simple semaphore wrapper
  *
- * \details Implements P() and V() operations using a pthread_mutex. Thereby
+ * @details Implements P() and V() operations using a pthread_mutex. Thereby
  *          freeing people from the mundane task of typing all the mutex
  *          code.
  *
- * \par     DEBUG vs Release Behavior
+ * @par     DEBUG vs Release Behavior
  *
  *          In DEBUG builds, use the PP/VV macros instead of calling P()/V()
  *          directly.  PP and VV automatically capture __FILE__, __METHOD_NAME__,
@@ -17,7 +22,7 @@
  *          destroy, and record a full acquisition history string (m_where) that
  *          is included in exception messages.
  *
- * \par     SEMTRACE
+ * @par     SEMTRACE
  *
  *          When compiled with both -DDEBUG and -DSEMTRACE, every PP/VV call
  *          is recorded in a global trace ring via semtraceadd().  Each entry
@@ -26,13 +31,8 @@
  *          to dump the collected trace -- invaluable for diagnosing lock
  *          contention and ordering issues in multi-threaded code.
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __SEMAPHORE_INC__
@@ -277,7 +277,7 @@ namespace crutil {
          }
 
 #ifdef SEMTRACE
-         { char buf[200];
+         { char buf[200] = "";
            CRSnprintf(buf, "P from %s::%s:%d", file, meth, line);
            SEMTRACE(this,1,now.diff(),buf); }
 #endif
@@ -321,11 +321,15 @@ namespace crutil {
 #endif
          }
 #ifdef __SEM_PORTABLE_TRACKING__
+         // For recursive mutexes with portable tracking, manually increment depth
+         else if (m_recursive == true) {
+            __sem_m_depth += 1;
+         }
          __sem_m_owner = CRX_GETTID();
 #endif
 
 #ifdef DEBUG
-         char tmp[WHERE_BUFSIZE];
+         char tmp[WHERE_BUFSIZE] = "";
          CRStrcpy(tmp, m_where);
          CRSnprintf(m_where, "++ [%6d:%s(%lu)] %s:%d,%s - depth=%d\n%s", CRX_GETTID(), getVerbose(), this, file, line, meth, __sem_m_depth, tmp);
 
@@ -360,11 +364,25 @@ namespace crutil {
 
          m_prev_thread_id = __sem_m_owner;
 #endif
+#ifdef __SEM_PORTABLE_TRACKING__
+         // For portable tracking, manually update depth for both types
+         if (m_recursive == true) {
+            __sem_m_depth -= 1;  // Decrement for next call
+            if (__sem_m_depth == 0) {
+               __sem_m_owner = 0;  // Clear owner when fully released
+            }
+         } else {
+            __sem_m_depth = 0;   // Reset for next call
+            __sem_m_owner = 0;   // Clear owner when released
+         }
+#else
+         // Platform with native depth tracking - only manage non-recursive
          if (m_recursive == false) {
 #ifdef __sem_m_depth
             __sem_m_depth = 0;
 #endif
          }
+#endif
 
 #ifdef DEBUG
 #ifdef SEMTRACE
@@ -391,11 +409,11 @@ namespace crutil {
          }
 
 #ifdef SEMTRACE
-         { char buf[200];
+         { char buf[200] = "";
            CRSnprintf(buf, "V from %s::%s:%d", file, meth, line);
            SEMTRACE(this,0,now.diff(),buf); }
 #endif
-         char tmp[WHERE_BUFSIZE];
+         char tmp[WHERE_BUFSIZE] = "";
          CRStrcpy(tmp, m_where);
          CRSnprintf(m_where, "-- [%06d:%s(%lu)] %s:%d,%s - depth=%d\n%s", CRX_GETTID(), getVerbose(), this, file, line, meth,  __sem_m_depth, tmp);
 

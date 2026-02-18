@@ -1,10 +1,15 @@
-/** \class   C++ template needs manifests
- *  
- *  \brief   A set of typedefs to make it easier to constrain C++ templates
+/*
+ * Copyright (c) 2016-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class   C++ template needs manifests
  *
- *  \details This is a convenient wrapper on the lovely and cryptic type_traits
+ *  @brief   A set of typedefs to make it easier to constrain C++ templates
+ *
+ *  @details This is a convenient wrapper on the lovely and cryptic type_traits
  *           and friends. It's based on discussion in:
- *           
+ *
  *           http://pfultz2.com/blog/2014/11/08/non-template-constraints/
  *           and
  *           http://pfultz2.com/blog/2014/08/17/type-requirements/
@@ -17,13 +22,8 @@
  *           that it can be made even more interesting by the use of Concepts,
  *           but I've not done that here yet.
  *
- *  \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- *  \see     http://www.vadura.eu/crutil
- *  \copy    Copyright (c) 2016 by Dennis Vadura, All rights reserved.
- *
- *  \license You can obtain and redistribute or modify this program under the 
- *           terms of the Software License Agreement Provided in the file:
- *           <distribution-root>/LICENSE.txt
+ *  @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ *  @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __NEEDS_INC__

@@ -11,16 +11,6 @@
 using namespace std;
 using namespace crutil;
 
-// Static definitions needed by Condition, Semaphore, and CRException.
-// These normally live in their respective .cpp files which aren't in the
-// library yet, so we provide them here for the test binary.
-const char*          Semaphore::VERBTAG     = "SEM";
-std::map<pid_t,bool> CRException::s_tmap;
-pthread_mutex_t      CRException::s_tlock   = PTHREAD_MUTEX_INITIALIZER;
-pthread_key_t        Condition::CONDKEY;
-bool                 Condition::CONDKEY_INIT = false;
-Semaphore            Condition::SEMCONDKEY;
-
 // --- basic lifecycle ---
 
 TEST_CASE("Condition default create and destroy", "[condition]") {

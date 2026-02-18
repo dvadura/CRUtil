@@ -1,19 +1,19 @@
-/** \class  AInteger
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  AInteger
  *
- * \brief   An atomic integer
+ * @brief   An atomic integer
  *
- * \details This is a wrapper for a concurrent integer implementation with atomic increment
+ * @details This is a wrapper for a concurrent integer implementation with atomic increment
  *          and decrement operations.
  *
  *          All of the member methods are thread safe.
- *         
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- * 
- * \license You can obtain and redistribute or modify this program under the 
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ *
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __AINTEGER_INC__
@@ -112,15 +112,15 @@ namespace crutil {
          return *this;
       }
 
-      inline uint64_t pre_add(const AInteger& delta) {
-         return (uint64_t) m_value.fetch_add(delta.m_value.load());
+      inline int64_t pre_add(const AInteger& delta) {
+         return m_value.fetch_add(delta.m_value.load());
       }
 
-      inline uint64_t pre_sub(const AInteger& delta) {
-         return (uint64_t) m_value.fetch_sub(delta.m_value.load());
+      inline int64_t pre_sub(const AInteger& delta) {
+         return m_value.fetch_sub(delta.m_value.load());
       }
 
-      uint64_t uint64() {
+      uint64_t uint64() const {
          return (uint64_t) m_value.load();
       }
 

@@ -1,8 +1,13 @@
-/** \class  CRException
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  CRException
  *
- * \brief   A simple wrapper on runtime_exception used by CRunnable library
+ * @brief   A simple wrapper on runtime_exception used by CRUtil library
  *
- * \details Pretty straight forward. Subclasses can overwrite what() to provide
+ * @details Pretty straight forward. Subclasses can overwrite what() to provide
  *          custom output of the exception m_messages.
  *
  *          In order to get stack traces you need to compile with debug symbols.
@@ -12,7 +17,7 @@
  *          Linux: g++ -std=gnu++17 -DDEBUG=1 -Og t.cpp -rdynamic
  *          macOS: g++ -std=gnu++17 -D_GNU_SOURCE -DDEBUG=1 -Og t.cpp
  *
- * \par Macro Quick Reference
+ * @par Macro Quick Reference
  *
  *          **Throwing:**
  *          - CRX_THROW(MSG, ...)              -- throw with errno=-1
@@ -39,13 +44,8 @@
  *            threads whose tid is NOT in the cancel map (i.e. other threads yield
  *            while the canceled thread is shutting down).
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 

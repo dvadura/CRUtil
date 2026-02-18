@@ -1,14 +1,19 @@
-/** \class  Condition
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @class  Condition
  *
- * \brief   A simple condition variable based on pthread_cond
+ * @brief   A simple condition variable based on pthread_cond
  *
- * \details Uses an underlying semaphore to implement a set of waiters on a
+ * @details Uses an underlying semaphore to implement a set of waiters on a
  *          condition. waitFor can be called with a nanosecond resolution timeout
  *          value.  The value is used to set a relative timeout from now and attempts
  *          to compensate for the cost of setting up the waitFor, so sub 5ns timeouts
  *          are meaningless.
  *
- * \par     COND_DEBUG
+ * @par     COND_DEBUG
  *
  *          When COND_DEBUG is defined (it is defined by default in the header),
  *          each Condition instance gains a m_debug flag controllable via
@@ -20,13 +25,8 @@
  *          Set dflag=true in the constructor, or call setDebug(true) at
  *          runtime to activate.
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2010-2013 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __CONDITION_INC__
@@ -189,13 +189,14 @@ namespace crutil {
    public:
       /// Create and initialize the conditional.
       /** If bflag is true, then the conditional will broadcast raise events, otherwise
-       *  individual thread signalling with a predicate is used.  See waitFor() for 
+       *  individual thread signalling with a predicate is used.  See waitFor() for
        *  additional documentation on how the two modes differ.
        *
-       * \param[in] bflag=false indicate if raise events are broadcast, default is false.
-       * \param[in] dflag=true  indicates a debug flag, used to figure out why conditionals fail.
+       * @param[in] bflag=false indicate if raise events are broadcast, default is false.
+       * @param[in] dflag=true  indicates a debug flag, used to figure out why conditionals fail.
        */
-      Condition(const bool bflag=false, const bool dflag=false) : m_sem(false,false), m_enabled(false)
+      Condition(const bool bflag=false, const bool dflag=false)
+         : m_sem(false,false), m_enabled(false), m_fired(0), m_waiters(0)
       {
 #ifdef COND_DEBUG
          m_debug = dflag;
@@ -206,7 +207,8 @@ namespace crutil {
          enable();
       }
 
-      Condition(const char* tag, const bool bflag=false, const bool dflag=false) : m_sem(false,false), m_enabled(false)
+      Condition(const char* tag, const bool bflag=false, const bool dflag=false)
+         : m_sem(false,false), m_enabled(false), m_fired(0), m_waiters(0)
       {
 #ifdef COND_DEBUG
          m_debug = dflag;
@@ -271,10 +273,10 @@ namespace crutil {
        *  clear() to release the predicate as soon as they have performed the minimal amount of
        *  work that they need to perform atomically once the condition represented by the
        *  conditional becomes true.
-       * 
+       *
        *  returns 0 if conditinal is true; returns errno value on error.
        *
-       *  \param[in] nsec_timeout Number of nanoseconds to wait before timing out, default is 0
+       *  @param[in] nsec_timeout Number of nanoseconds to wait before timing out, default is 0
        */
       inline int waitFor(u_int64_t nsec_timeout=0L)
       {

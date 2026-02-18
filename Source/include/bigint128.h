@@ -1,6 +1,11 @@
-/** \brief  An implementation of both a pair and intrinsic 128 bit unsigned integer
+/*
+ * Copyright (c) 2016-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @brief  An implementation of both a pair and intrinsic 128 bit unsigned integer
  *
- * \details The idea is to define uint128_t as a class type and to provide the full suite of
+ * @details The idea is to define uint128_t as a class type and to provide the full suite of
  *          operators. The underlying implementation is either a pair of 64bit long longs, or
  *          a single unsigned __int128, In either case all of the operations are supported as
  *          a uniform abstraction. The instrinsic based implementation is approximately 2-3x
@@ -22,13 +27,8 @@
  *
  *                use -lrt on Linux if you are using crtimer.h to measure things.
  *
- * \author  Dennis Vadura, mailto:dennis.vadura@gmail.com
- * \see     http://www.vadura.eu/crutil
- * \copy    Copyright (c) 2016 by Dennis Vadura, All rights reserved.
- *
- * \license You can obtain and redistribute or modify this program under the
- *          terms of the Software License Agreement Provided in the file:
- *          <distribution-root>/LICENSE.txt
+ * @author  Dennis Vadura, mailto:dennis.vadura@gmail.com
+ * @see     https://github.com/dvadura/CRUtil
  */
 
 #ifndef __BIGINT128_INC__

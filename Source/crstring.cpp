@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2010-2026 by Dennis Vadura, All rights reserved.
+ * Licensed under terms in <distribution-root>/LICENSE.txt
+ */
+
+/** @file crstring.cpp
+ *  @brief Implementation of safe C-string manipulation utilities
+ *
+ *  @details Provides implementations for the CRS class methods defined in crstring.h.
+ *           See crstring.h for full API documentation and usage examples.
+ */
+
 #include "crexception.h"
 #include "crstring.h"
 
@@ -65,7 +77,7 @@ CRS::_doltrim(char* str, const char* ws, size_t size, size_t& len) {
    return frontp;
 }
 
-char* 
+char*
 CRS::_strncpy(char* dst, size_t size, const char* src)
 {
    CRX_TIFNULL(src);
@@ -73,11 +85,11 @@ CRS::_strncpy(char* dst, size_t size, const char* src)
    // use loop so we don't overrun size
    for (; *dst != '\0' && size > 0; ++dst, --size);
 
-   int len = size-1;
-
-   if (unlikely(len <= 0)) {
+   if (unlikely(size == 0)) {
       CRX_THROW("buffer overflow");
    }
+
+   int len = (int)(size - 1);
 
    ::strncpy(dst, src, len)[len] = '\0';
    return dst;
@@ -130,7 +142,13 @@ CRS::add(char* dst, const char* src, size_t size)
 {
    char* base = dst;
    char* end  = _strncpy(dst, size, " ");
-   return _strncpy(end + 1, size - (size_t)(end + 1 - base), src);
+   size_t used = (size_t)(end + 1 - base);
+
+   if (unlikely(used >= size)) {
+      CRX_THROW("buffer overflow");
+   }
+
+   return _strncpy(end + 1, size - used, src);
 }
 
 const char* 
