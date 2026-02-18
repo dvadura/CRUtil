@@ -1,4 +1,35 @@
 ===============================================================================================
+# Update CRUtil-Reference.md with new and modified components
+
+February 17, 2026 :: 09:15 PM EST (UTC: February 18, 2026 02:15 UTC)
+
+Rewrote `Documents/CRUtil-Reference.md` to reflect all additions and changes made
+since the last reference update.
+
+- Updated intro paragraph to mention new container and utility types
+- Updated Table of Contents to 16 entries (was 12)
+- **String Obfuscation**: updated `Obfuscate` → `LString`, new decode API (`decode(enc)`
+  returns `std::string` by value; no more out-param), documented chained XOR/add/rotate
+  algorithm, removed removed `cstr()` alias
+- **Semaphore / Condition**: noted separate `.cpp` implementation files
+- **New section — CList** (`clist.h`): thread-safe `std::deque` wrapper with condition
+  variable; full API including push/pop variants, `pfpb`, `splice`, `freeze`/`thaw`,
+  `waitFor`, `raise`, `clear`
+- **New section — CUSet** (`cuset.h`): concurrent `std::unordered_set` wrapper with
+  set semantics; API includes `add`, `splice`, `contains`, `remove`, `remove_front`,
+  `freeze`/`thaw`, `waitFor`
+- **New section — Lock-Free Lists** (`ilflist.h`, `lflist.h`, `rqlist.h`): documented
+  `ILFList<T>` abstract interface, `LFList<T>` (oneTBB-backed, MPMC), and `RQList<T>`
+  (lock-free ring queue, MPSC, no oneTBB dependency); slot state machine explained
+- **New section — SharedPtr** (`sharedptr.h`): null-dereference-safe `std::shared_ptr`
+  wrapper; construction rules, null behavior, inheritance from `std::shared_ptr`
+- **Updated Platform & Types**: added `crtp.h` (`crunnable::crtp<T>` helper with
+  `tcast()` for CRTP base classes)
+- **Updated Building**: added oneTBB as an optional requirement (LFList only)
+- **Updated Testing**: 219 test cases / 3111 assertions (full suite with LFList);
+  182 without oneTBB; added all new test files to table; updated both compile commands
+
+===============================================================================================
 # Add comprehensive test coverage for LFList (lock-free list)
 
 February 17, 2026 :: 7:45 PM EST (UTC: February 18, 2026 00:45 UTC)

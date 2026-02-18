@@ -1,8 +1,9 @@
 # CRUtil Library Reference
 
 CRUtil is a modern C++17 utility library providing 128-bit and 256-bit arithmetic, concurrency
-primitives, safe string handling, compile-time string obfuscation, nanosecond-precision
-timing, and portable platform abstractions. All public types live in the `crutil` namespace.
+primitives, thread-safe containers, lock-free queues, safe shared pointers, safe string handling,
+compile-time string obfuscation, nanosecond-precision timing, and portable platform abstractions.
+All public types live in the `crutil` namespace.
 
 Built with [BuildItFast](https://github.com/pyvadura/BuildItFast) (`bif`).
 
@@ -18,10 +19,14 @@ Built with [BuildItFast](https://github.com/pyvadura/BuildItFast) (`bif`).
 6. [Timer (crtimer.h)](#timer)
 7. [Semaphore (semaphore.h)](#semaphore)
 8. [Condition Variable (condition.h)](#condition-variable)
-9. [Exception (crexception.h)](#exception)
-10. [Platform & Types (crtypes.h, endian.h, crlikely.h, needs.h)](#platform--types)
-11. [Building](#building)
-12. [Testing](#testing)
+9. [Thread-safe List (clist.h)](#thread-safe-list)
+10. [Concurrent Unordered Set (cuset.h)](#concurrent-unordered-set)
+11. [Lock-Free Lists (ilflist.h, lflist.h, rqlist.h)](#lock-free-lists)
+12. [Safe Shared Pointer (sharedptr.h)](#safe-shared-pointer)
+13. [Exception (crexception.h)](#exception)
+14. [Platform & Types (crtypes.h, endian.h, crlikely.h, needs.h, crtp.h)](#platform--types)
+15. [Building](#building)
+16. [Testing](#testing)
 
 ---
 
@@ -398,32 +403,53 @@ CRS::throwifempty(str);   // throws CRException if empty
 
 **Header:** `Source/include/lstring.h` (header-only)
 
-Compile-time XOR-based string obfuscation. Plaintext string literals never appear in
-the compiled binary.
+Compile-time string obfuscation using a chained XOR/add/rotate encoding. Plaintext
+string literals never appear in the compiled binary.
 
 ```cpp
 #include "lstring.h"
 using namespace crutil;
 
 // Encode at compile time
-constexpr auto secret = Obfuscate::encode("my secret string");
+constexpr auto secret = LString::encode("my secret string");
 
-// Decode at runtime
-std::string plain;
-Obfuscate::decode(secret.data, plain);
+// Decode at runtime — returns std::string by value
+std::string plain = LString::decode(secret);
 // plain == "my secret string"
 ```
 
-Encoded strings can be stored in constexpr containers:
+Encoded strings can be stored in `constexpr` containers:
 
 ```cpp
 constexpr auto passwords = std::array{
-   Obfuscate::encode("password1"),
-   Obfuscate::encode("password2"),
+   LString::encode("password1"),
+   LString::encode("password2"),
 };
 ```
 
-The `cstr()` function is a legacy alias for `Obfuscate::encode()`.
+### Encoding Algorithm
+
+Each byte is transformed by a four-step pipeline before being stored:
+
+**Encode:** `XOR(position key)` → `XOR(prev encoded byte)` → `ADD(key2)` → `ROTL(3)`
+
+**Decode:** `ROTR(3)` → `SUB(key2)` → `XOR(prev encoded byte)` → `XOR(position key)`
+
+Chaining each byte's output into the next means identical plaintext characters
+produce different encoded values, preventing partial byte recovery. The combination
+of XOR, addition, and bit rotation makes the encoding non-trivial to identify in
+disassembly.
+
+### API
+
+| Function | Description |
+|----------|-------------|
+| `LString::encode(s)` | Encodes string literal `s` at compile time; returns `lstring<N>` |
+| `LString::decode(enc)` | Decodes `lstring<N>` at runtime; returns `std::string` |
+| `LString::encode_byte(c, i, prev)` | `constexpr` single-byte encode step |
+| `LString::decode_byte(x, i, prev)` | `constexpr` single-byte decode step |
+
+The `lstring<N>` type is the encoded container and has a single member `char data[N]`.
 
 ---
 
@@ -520,6 +546,7 @@ Defined in `crtypes.h`:
 ## Semaphore
 
 **Header:** `Source/include/semaphore.h`
+**Implementation:** `Source/semaphore.cpp`
 
 A pthread_mutex wrapper providing classical P() and V() semaphore operations.
 Supports recursive and non-recursive modes.
@@ -593,6 +620,7 @@ sem.setVerbose(NULL);       // disable (NULL suppresses output)
 ## Condition Variable
 
 **Header:** `Source/include/condition.h`
+**Implementation:** `Source/condition.cpp`
 
 A pthread_cond wrapper supporting nanosecond-resolution timeouts, built on top of
 the Semaphore class.  Supports both broadcast and single-event modes.
@@ -644,9 +672,368 @@ ordering problems in multi-threaded code.
 
 ---
 
+## Thread-safe List
+
+**Header:** `Source/include/clist.h` (header-only)
+
+`CList<T>` is a thread-safe concurrent list/queue backed by `std::deque<T>`. All
+operations are O(1) and fully synchronized via an internal recursive mutex. A built-in
+`Condition` supports efficient producer-consumer blocking.
+
+```cpp
+#include "clist.h"
+using namespace crutil;
+
+CList<int> list;                    // empty list
+CList<int> list(42);                // single-item list
+CList<int> list(std::move(other));  // move construct
+```
+
+An optional `tag` string names the internal condition variable for debugging.
+
+### Size and Inspection
+
+```cpp
+size_t n  = list.size();    // current element count
+bool   e  = list.empty();   // true if empty
+int    f  = list.front();   // copy of first element (throws if empty)
+int    b  = list.back();    // copy of last element (throws if empty)
+```
+
+`front()` and `back()` return by **copy** to ensure thread safety.
+Iterators and `operator[]` are intentionally absent.
+
+### Adding Elements
+
+```cpp
+list.push_front(item);             // prepend (signals waiters by default)
+list.push_back(item);              // append  (signals waiters by default)
+list.push_back(item, false);       // append without signaling
+list.add(item);                    // alias for push_back
+list.add(std::move(other_list));   // splice all elements from another CList
+list.splice(std::move(other));     // move-splice; returns new size
+```
+
+### Removing Elements
+
+```cpp
+list.pop_front();                        // discard first element (throws if empty)
+list.pop_back();                         // discard last element (throws if empty)
+
+int v = list.remove_front();             // remove and return first (throws if empty)
+int v = list.remove_front(false);        // remove and return first (returns T{} if empty, sets errno=-1)
+int v = list.remove_back();             // remove and return last (throws if empty)
+int v = list.remove_back(false);         // no-throw variant
+
+int v = list.pfpb();                     // pop-front-push-back: rotate first to end, return it
+
+unsigned int n = list.remove(value);     // erase all matching elements; returns new size
+```
+
+### Waiting and Signaling
+
+```cpp
+bool ok = list.waitFor();              // block until non-empty (indefinite)
+bool ok = list.waitFor(NS_IN_ONE_SEC); // block with nanosecond timeout; false = timed out
+list.raise();                          // wake waiters even if list is empty (e.g. on shutdown)
+```
+
+### Bulk Operations
+
+```cpp
+list.clear();    // empty the list and wake any waiters
+list.fit();      // release excess deque capacity (shrink_to_fit)
+```
+
+### Atomic Multi-step Access
+
+```cpp
+size_t n = list.freeze();   // lock and return size (recursive mutex)
+// ... inspect m_data safely ...
+list.thaw();                // unlock
+```
+
+---
+
+## Concurrent Unordered Set
+
+**Header:** `Source/include/cuset.h` (header-only)
+
+`CUSet<T>` is a thread-safe wrapper around `std::unordered_set<T>`. All operations
+are internally synchronized via a recursive mutex. Set semantics are enforced:
+duplicate insertions are idempotent. A built-in `Condition` supports blocking on
+non-empty.
+
+```cpp
+#include "cuset.h"
+using namespace crutil;
+
+CUSet<int> set;                      // empty set
+CUSet<int> set(item);                // single-element set
+CUSet<int> set(std::move(other));    // move construct
+```
+
+### Query
+
+```cpp
+size_t n  = set.size();           // point-in-time element count (may be stale immediately)
+bool   e  = set.empty();          // point-in-time emptiness check
+bool   c  = set.contains(value);  // membership test
+```
+
+> **Note:** Results may be stale by the time the caller acts on them. Use
+> `freeze()`/`thaw()` for consistent multi-step reads.
+
+### Adding Elements
+
+```cpp
+set.add(item);                     // insert (idempotent; signals waiters)
+set.push_back(item);               // alias for add
+set.push_front(item);              // alias for add
+set.add(std::move(other_set));     // splice all elements from another CUSet
+set.splice(std::move(other));      // move-splice; returns new size
+```
+
+### Removing Elements
+
+```cpp
+T v    = set.remove_front();       // remove and return an arbitrary element (throws if empty)
+int n  = set.remove(value);        // erase by value; returns 1 if found, 0 if not (throws if empty)
+```
+
+### Waiting and Signaling
+
+```cpp
+bool ok = set.waitFor();               // block until non-empty (indefinite)
+bool ok = set.waitFor(NS_IN_ONE_SEC);  // block with nanosecond timeout; false = timed out
+set.raise();                           // wake waiters unconditionally
+```
+
+### Bulk Operations
+
+```cpp
+set.clear();   // empty the set and wake any waiters
+```
+
+### Atomic Multi-step Access
+
+```cpp
+size_t n = set.freeze();   // lock and return size
+// ... perform multiple consistent reads ...
+set.thaw();                // unlock
+```
+
+---
+
+## Lock-Free Lists
+
+CRUtil provides three related types for lock-free concurrent queues, built around a
+common abstract interface.
+
+### ILFList — Interface
+
+**Header:** `Source/include/ilflist.h` (header-only)
+
+Abstract base class defining the interface shared by all lock-free list implementations.
+
+```cpp
+virtual size_t size()                                  = 0;
+virtual bool   empty()                                 = 0;
+virtual T      remove_front(bool* success, bool throwe = true) = 0;
+virtual bool   push_back(const T& item, bool raise = true)     = 0;
+virtual bool   waitFor(uint64_t timeout = 0)           = 0;
+virtual void   raise()                                 = 0;
+virtual void   clear()                                 = 0;
+```
+
+Use `ILFList<T>*` to write code that is agnostic between `LFList` and `RQList`.
+
+---
+
+### LFList — Lock-Free List (oneTBB)
+
+**Header:** `Source/include/lflist.h` (header-only)
+**Requires:** Intel oneTBB (`tbb/concurrent_queue.h`)
+
+`LFList<T>` wraps `tbb::concurrent_queue<T>` with a `Condition` for blocking
+wait/signal patterns. All operations are thread-safe for any number of producers
+and consumers.
+
+```cpp
+#include "lflist.h"
+using namespace crutil;
+
+LFList<int*> queue;            // empty queue
+LFList<int*> queue(item);      // single-item queue
+LFList<int*> queue(std::move(other));  // move construct
+```
+
+#### Push
+
+```cpp
+queue.push(item);              // enqueue (signals waiters by default)
+queue.push(item, false);       // enqueue without signaling
+queue.push_back(item);         // alias for push
+```
+
+#### Pop
+
+```cpp
+bool ok;
+T item = queue.remove(&ok);            // dequeue; ok=true if item was available
+T item = queue.remove(&ok, false);     // no-throw variant
+T item = queue.remove_front(&ok);      // alias for remove
+T item = queue.pfpb();                 // pop-front-push-back: rotate, return item
+```
+
+#### Size and State
+
+```cpp
+size_t n = queue.size();    // approximate element count (tbb::unsafe_size)
+bool   e = queue.empty();   // true if empty
+```
+
+#### Waiting and Signaling
+
+```cpp
+bool ok = queue.waitFor();              // block until non-empty (indefinite)
+bool ok = queue.waitFor(NS_IN_ONE_SEC); // block with nanosecond timeout
+queue.raise();                          // wake waiters unconditionally (e.g. on shutdown)
+queue.clear();                          // empty the queue and wake waiters
+```
+
+> **Dependency:** `LFList` requires Intel oneTBB. The library is installed locally
+> at `.d/oneTBB/`. See `Documents/ONETBB_INTEGRATION.md` for build details.
+
+---
+
+### RQList — Lock-Free Ring Queue (MPSC)
+
+**Header:** `Source/include/rqlist.h` (header-only)
+
+`RQList<T, TSIZE>` is a lock-free ring queue designed for **multi-producer,
+single-consumer** (MPSC) patterns. It uses atomic slot reservation to provide
+thread-safe concurrent writes without locks or oneTBB.
+
+| Template Parameter | Default | Description |
+|-------------------|---------|-------------|
+| `T` | — | Element type (must be copyable) |
+| `TSIZE` | `2048` | Ring buffer capacity |
+
+```cpp
+#include "rqlist.h"
+using namespace crutil;
+
+RQList<MyEvent*> queue;           // capacity 2048
+RQList<MyEvent*, 4096> queue;     // custom capacity
+RQList<MyEvent*> queue("tag");    // named condition variable
+```
+
+#### Push (multiple producers safe)
+
+```cpp
+bool ok = queue.push(item);           // enqueue; false if queue is full
+bool ok = queue.push(item, false);    // enqueue without signaling waiters
+bool ok = queue.push_back(item);      // alias for push
+```
+
+#### Pop (single consumer only)
+
+```cpp
+bool ok;
+T item = queue.remove(&ok);           // dequeue; ok=true if item was available
+T item = queue.remove_front(&ok);     // alias for remove
+```
+
+#### State
+
+```cpp
+size_t n = queue.size();    // approximate (write_pos - read_pos)
+bool   e = queue.empty();   // true if read slot is EMPTY
+```
+
+#### Waiting, Signaling, and Reset
+
+```cpp
+bool ok = queue.waitFor();              // block until non-empty
+bool ok = queue.waitFor(timeout_ns);    // block with nanosecond timeout
+queue.raise();                          // wake waiters
+queue.clear();                          // reset all slots to EMPTY — NOT thread-safe
+```
+
+> **Important:** `clear()` must only be called when no other threads are accessing
+> the queue.
+
+#### Slot State Machine
+
+Each ring slot progresses through three states:
+
+```
+EMPTY → RESERVED (writer claims slot) → FILLED (data written) → EMPTY (reader consumed)
+```
+
+The `RESERVED` state prevents a reader from consuming a slot before the writer
+finishes writing, eliminating ABA hazards.
+
+---
+
+## Safe Shared Pointer
+
+**Header:** `Source/include/sharedptr.h` (header-only)
+
+`SharedPtr<T>` extends `std::shared_ptr<T>` with null-dereference protection.
+Dereferencing a null `SharedPtr` throws a `CRException` instead of causing undefined
+behavior.
+
+```cpp
+#include "sharedptr.h"
+using namespace crutil;
+
+// Always construct via make_shared
+auto ptr = crutil::make_shared<MyClass>(arg1, arg2);
+
+// Safe to use — throws CRException on null dereference
+ptr->method();    // throws if ptr is null
+*ptr = value;     // throws if ptr is null
+
+// Construct from std::shared_ptr
+std::shared_ptr<MyClass> std_ptr = std::make_shared<MyClass>();
+SharedPtr<MyClass> safe_ptr(std_ptr);
+```
+
+### Construction Rules
+
+- **No default constructor** — prevents uninitialized shared pointers.
+- **No constructor from raw `T*`** — use `crutil::make_shared<T>()` instead.
+- Copy, move, and construction from `std::shared_ptr<T>` are all supported.
+
+```cpp
+SharedPtr<T> a(other_shared_ptr);       // copy from SharedPtr
+SharedPtr<T> b(std_shared_ptr);         // wrap existing std::shared_ptr
+SharedPtr<T> c(std::move(a));           // move construct
+```
+
+### Null Behavior
+
+A `SharedPtr` constructed from a null `std::shared_ptr` is valid to hold but throws
+on dereference:
+
+```cpp
+SharedPtr<MyClass> null_ptr(std::shared_ptr<MyClass>());  // wraps null
+null_ptr->method();  // throws CRException: "ptr is NULL"
+```
+
+### Inheritance
+
+`SharedPtr<T>` inherits from `std::shared_ptr<T>`, so it is compatible with
+`std::shared_ptr` APIs (`use_count()`, `reset()`, `get()`, boolean test, etc.).
+
+---
+
 ## Exception
 
 **Header:** `Source/include/crexception.h`
+**Implementation:** `Source/crexception.cpp`
 
 `CRException` extends `std::runtime_error` with file/line/function tracking,
 demangled stack traces, and a rich macro API for throwing, catching, and reporting.
@@ -823,6 +1210,25 @@ void process(T value);
 `NEEDS` generates unique types per `__LINE__` to disambiguate overloads with identical
 signatures but different constraints.
 
+### crtp.h
+
+CRTP (Curiously Recurring Template Pattern) helper in the `crunnable` namespace:
+
+```cpp
+#include "crtp.h"
+
+template <typename Derived>
+class Base : public crunnable::crtp<Derived> {
+   void foo() {
+      this->tcast().derived_method();   // safe downcast, no manual static_cast
+   }
+};
+```
+
+`crtp<T>` provides two `tcast()` overloads — const and non-const — that perform
+`static_cast<T const&>(*this)` and `static_cast<T&>(*this)` respectively. This
+eliminates repetitive casting boilerplate in CRTP base classes.
+
 ---
 
 ## Building
@@ -867,14 +1273,15 @@ c++ -std=gnu++17 -I Source/include -c Source/crstring.cpp -o crstring.o
 - C++17 compiler (GCC or Clang)
 - POSIX system (Linux, macOS)
 - `__int128` support for intrinsic uint128_t (GCC/Clang on 64-bit)
+- Intel oneTBB — required only for `LFList`. Installed locally at `.d/oneTBB/`.
+  See `Documents/ONETBB_INTEGRATION.md` for installation details.
 
 ---
 
 ## Testing
 
 Tests use the [Catch2](https://github.com/catchorg/Catch2) framework (v2.13.0,
-single-header, included in `Test/catch2.hpp`). The full suite has 164 test cases
-with 966 assertions.
+single-header, included in `Test/catch2.hpp`).
 
 | Test File | Component |
 |-----------|-----------|
@@ -886,26 +1293,47 @@ with 966 assertions.
 | test_lstring.cpp | lstring.h |
 | test_condition.cpp | condition.h |
 | test_crtimer.cpp | crtimer.h |
+| test_semaphore.cpp | semaphore.h |
+| test_clist.cpp | clist.h |
+| test_cuset.cpp | cuset.h |
+| test_rqlist.cpp | rqlist.h |
+| test_lflist.cpp | lflist.h — requires oneTBB |
 
-Build and run:
+The full suite (including LFList) has **219 test cases** and **3111 assertions**.
+The non-oneTBB suite has **182 test cases**.
 
-```bash
-bif test    # build and run all tests
-```
-
-Or manually:
+### Standard Test Build
 
 ```bash
 bif do 0    # build the debug library first
 
-cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -I ../Source/include -o test_runner \
+cd Test && g++ -std=gnu++17 -D_GNU_SOURCE \
+  -I ../Source/include \
   test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
   test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
-  test_lstring.cpp ../Source/crstring.cpp -lpthread
+  test_lstring.cpp test_semaphore.cpp test_clist.cpp test_rqlist.cpp test_cuset.cpp \
+  ../Source/crstring.cpp ../Source/condition.cpp ../Source/crexception.cpp \
+  ../Source/semaphore.cpp \
+  -lpthread -o cl_test_runner
 
-./test_runner                   # run all tests
-./test_runner "[bigint256]"     # run a specific tag
-./test_runner "[crexception]"   # run exception tests
+./cl_test_runner                    # run all non-TBB tests
+./cl_test_runner "[bigint256]"      # run a specific tag
 ```
 
-Python tests use pytest (`Test/test_hello.py`).
+### LFList Test Build (requires oneTBB)
+
+```bash
+cd Test && g++ -std=gnu++17 -D_GNU_SOURCE \
+  -I ../Source/include -I ../.d/oneTBB/include \
+  test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
+  test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
+  test_lstring.cpp test_semaphore.cpp test_clist.cpp test_rqlist.cpp test_cuset.cpp \
+  test_lflist.cpp \
+  ../Source/crstring.cpp ../Source/condition.cpp ../Source/crexception.cpp \
+  ../Source/semaphore.cpp \
+  -L../.d/oneTBB/lib -ltbb -lpthread -o tbb+cl_test_runner
+
+export DYLD_LIBRARY_PATH=/Volumes/Development/DV/Live/CRUtil/.d/oneTBB/lib:$DYLD_LIBRARY_PATH
+./tbb+cl_test_runner                # run all tests including LFList
+./tbb+cl_test_runner "[lflist]"     # run only LFList tests
+```
