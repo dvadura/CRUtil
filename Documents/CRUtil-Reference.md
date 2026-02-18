@@ -1218,16 +1218,16 @@ CRTP (Curiously Recurring Template Pattern) helper in the `crunnable` namespace:
 #include "crtp.h"
 
 template <typename Derived>
-class Base : public crunnable::crtp<Derived> {
+class Base : public crutil::crtp<Derived> {
    void foo() {
       this->tcast().derived_method();   // safe downcast, no manual static_cast
    }
 };
 ```
 
-`crtp<T>` provides two `tcast()` overloads — const and non-const — that perform
-`static_cast<T const&>(*this)` and `static_cast<T&>(*this)` respectively. This
-eliminates repetitive casting boilerplate in CRTP base classes.
+`crutil::crtp<T>` provides two `tcast()` overloads — const and non-const — that
+perform `static_cast<T const&>(*this)` and `static_cast<T&>(*this)` respectively.
+This eliminates repetitive casting boilerplate in CRTP base classes.
 
 ---
 

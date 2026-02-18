@@ -17,7 +17,7 @@
 #ifndef __CRTP_INC__
 #define __CRTP_INC__
 
-namespace crunnable {
+namespace crutil {
    template <typename T>
    struct crtp {
       inline T  const& tcast() const { return static_cast<T const&>(*this); }

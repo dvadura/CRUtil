@@ -1,4 +1,17 @@
 ===============================================================================================
+# Fix crtp.h namespace: crunnable → crutil
+
+February 17, 2026 :: 09:30 PM EST (UTC: February 18, 2026 02:30 UTC)
+
+Renamed `namespace crunnable` to `namespace crutil` in `Source/include/crtp.h` to
+be consistent with the rest of the library. Updated all references in
+`Documents/CRUtil-Reference.md` accordingly.
+
+- `Source/include/crtp.h`: `namespace crunnable` → `namespace crutil`
+- `Documents/CRUtil-Reference.md`: `crunnable::crtp<T>` → `crutil::crtp<T>` in
+  the crtp.h section description and code example
+
+===============================================================================================
 # Update CRUtil-Reference.md with new and modified components
 
 February 17, 2026 :: 09:15 PM EST (UTC: February 18, 2026 02:15 UTC)
