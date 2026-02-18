@@ -16,6 +16,8 @@ env:
   BUILD_TGTDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{arch}/{build}.lower()'
   BUILD_DBGDIR: '{BIF_PRJ_BUILDDIR}/{BIF_BUILD_HOST_PLATFORM}/{arch}/dbg'
   CLANG_INCDIR: 'include'
+  CFLAGS: [ '-std=gnu++17' ]
+
 
 # ==============================================================================================
 # Root Artifact Targets for running TESTS
@@ -36,32 +38,79 @@ env:
   env:
     INCDIR_SRCDIR: '{PRJ_CLANG_SOURCEDIR}/{CLANG_INCDIR}'
     INCDIR_LOCDIR: '{PRJ_CLANG_SOURCEDIR}'
-    CFLAGS: ['-g', '-DDEBUG']
-    DBGLIB: '{BUILD_DBGDIR}/{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{arch}.DBG-{id}.lib'
+    CFLAGS: ['{*CFLAGS}.add(-g,-DDEBUG)']
 
   adir: '{BIF_PRJ_TESTDIR}'
   bdir: '{BIF_PRJ_TESTDIR}'
   needs:
-  - '#tests'
-  uses: 
+  - '#test_main'
+  - '#notbb_tests'
+  uses:
   - 'include'
-  - '{DBGLIB}'
+  - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{arch}.DBG-{id}.lib'
   virtual: true
   steps:
   - tool: g++
-    options: ['-std=gnu++17', '{*CFLAGS}', '-I< {##}[0] >', '-o', 'test_runner']
+    options: ['{*CFLAGS}', '-I< {USES}[:-1] >', '-o', 'cl_test_runner']
     args:
-    - '{CFLAGS}'
-    - '{#}'
-    - '{##}[1]'
+    - '{NEEDS}'
+    - '{USES}[-1:]'
     - '-lpthread'
   - tool: bash
-    options: ['-c', './test_runner -s']
+    options: ['-c', './cl_test_runner --use-colour no -s']
 
-tests:
+# ==============================================================================================
+#     ---------
+#     CLANG
+#     ---------
+#     <PKG>+cl+tst,{BIF_ART_VERSION}-osx.amd64.DBG-{buildid}.lib
+# g++ -std=gnu++17 -g -DDEBUG -I../Source/include -o tbb+cl_test_runner
+#     test_main.cpp test_lflist.cpp
+#     ../Build/osx/amd64/dbg/CRUtil+cl,1.0-osx.amd64.DBG-2026202_1404.lib
+#     ../.d/oneTBB/lib/libtbb.a
+#     -lpthread
+#
+'{BIF_ART_NAME}+tbb+cl+tst,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{:arch}.{:build}-{:id}.bin' :
+  env:
+    INCDIR_SRCDIR: '{PRJ_CLANG_SOURCEDIR}/{CLANG_INCDIR}'
+    INCDIR_LOCDIR: '{PRJ_CLANG_SOURCEDIR}'
+    CFLAGS: ['{*CFLAGS}.add(-g,-DDEBUG)']
+
   adir: '{BIF_PRJ_TESTDIR}'
+  bdir: '{BIF_PRJ_TESTDIR}'
+  needs:
+    - '#test_main'
+    - '#tbb_tests'
+  uses:
+    - 'include'
+    - '#tbb_include'
+    - '{BIF_ART_NAME}+cl,{BIF_ART_VERSION}-{BIF_BUILD_HOST_PLATFORM}.{arch}.DBG-{id}.lib'
+    - 'libtbb.a'
+  virtual: true
+  steps:
+    - tool: g++
+      options: ['{*CFLAGS}', '-I< {USES}[:-2] >', '-o', 'tbb+cl_test_runner']
+      args:
+        - '{NEEDS}'
+        - '{USES}[-2:]'
+        - '-ltbb'
+        - '-lpthread'
+    - tool: bash
+      options: ['-c', './tbb+cl_test_runner --use-colour no -s']
+
+tbb_include:
+  adir: '<{BIF_BIF_DEPENDENCYDIR}>/oneTBB/include'
+  needs: 'include'
+
+libtbb.a:
+  adir: '<{BIF_BIF_DEPENDENCYDIR}>/oneTBB/lib'
+
+test_main:
   needs:
   - 'test_main.cpp'
+
+notbb_tests:
+  needs:
   - 'test_ainteger.cpp'
   - 'test_bigint.cpp'
   - 'test_bigint256.cpp'
@@ -74,6 +123,10 @@ tests:
   - 'test_clist.cpp'
   - 'test_rqlist.cpp'
   - 'test_cuset.cpp'
+
+tbb_tests:
+  needs:
+    - 'test_lflist.cpp'
 
 test___.cpp:
   adir: '{BIF_PRJ_TESTDIR}'
@@ -134,7 +187,7 @@ include:
   bdir: '{PRJ_CLANG_SOURCEDIR}'
   tool: bash
   options: ['-c', '/bin/cp -rp {CLANG_INCDIR} {ADIR}']
-    
+
 objects:
   adir: '{CLANG_OBJDIR}'
   needs:
@@ -146,8 +199,6 @@ objects:
 _.o:
   adir: '{CLANG_OBJDIR}'
   bdir: '{BIF_PRJ_SOURCEDIR}'
-  env:
-    CFLAGS: ['-std=gnu++17', '{-CFLAGS}']
 
   needs: [ '{1}.cpp' ]
   uses: [ '@ClangDeps({1}_{DEPS_VARIANT}.d)' ]
@@ -155,7 +206,7 @@ _.o:
   - tool: echo
     args: [ 'Compiling: {#}' ]
   - tool: gcc
-    options: [ '{-CFLAGS}', '-I', 'include', '-c', '-o', '{@}' ]
+    options: [ '{*CFLAGS}', '-I', 'include', '-c', '-o', '{@}' ]
     args: ['{#}']
 
 _.d:
