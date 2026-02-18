@@ -403,8 +403,8 @@ CRS::throwifempty(str);   // throws CRException if empty
 
 **Header:** `Source/include/lstring.h` (header-only)
 
-Compile-time string obfuscation using a chained XOR/add/rotate encoding. Plaintext
-string literals never appear in the compiled binary.
+Compile-time string obfuscation via XOR encoding. Plaintext string literals never
+appear in the compiled binary.
 
 ```cpp
 #include "lstring.h"
@@ -427,27 +427,12 @@ constexpr auto passwords = std::array{
 };
 ```
 
-### Encoding Algorithm
-
-Each byte is transformed by a four-step pipeline before being stored:
-
-**Encode:** `XOR(position key)` → `XOR(prev encoded byte)` → `ADD(key2)` → `ROTL(3)`
-
-**Decode:** `ROTR(3)` → `SUB(key2)` → `XOR(prev encoded byte)` → `XOR(position key)`
-
-Chaining each byte's output into the next means identical plaintext characters
-produce different encoded values, preventing partial byte recovery. The combination
-of XOR, addition, and bit rotation makes the encoding non-trivial to identify in
-disassembly.
-
 ### API
 
 | Function | Description |
 |----------|-------------|
 | `LString::encode(s)` | Encodes string literal `s` at compile time; returns `lstring<N>` |
 | `LString::decode(enc)` | Decodes `lstring<N>` at runtime; returns `std::string` |
-| `LString::encode_byte(c, i, prev)` | `constexpr` single-byte encode step |
-| `LString::decode_byte(x, i, prev)` | `constexpr` single-byte decode step |
 
 The `lstring<N>` type is the encoded container and has a single member `char data[N]`.
 

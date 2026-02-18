@@ -1,4 +1,25 @@
 ===============================================================================================
+# Rename Obfuscate to LString and simplify public API
+
+February 17, 2026 :: 09:45 PM EST (UTC: February 18, 2026 02:45 UTC)
+
+Renamed `Obfuscate` struct to `LString` and updated `decode` to take a
+`const lstring<N>&` directly, returning `std::string` by value. Removed the
+`cstr()` legacy alias.
+
+**New API:**
+```cpp
+constexpr auto secret = LString::encode("my secret string");
+std::string plain = LString::decode(secret);
+```
+
+- `struct Obfuscate` → `struct LString` throughout header and tests
+- `decode` now takes `const lstring<N>&` and returns `std::string` by value
+- Removed `cstr()` legacy alias and its test
+- Updated all test cases to use the new API
+- Updated `CRUtil-Reference.md` to reflect the new API
+
+===============================================================================================
 # Fix crtp.h namespace: crunnable → crutil
 
 February 17, 2026 :: 09:30 PM EST (UTC: February 18, 2026 02:30 UTC)
@@ -22,8 +43,7 @@ since the last reference update.
 - Updated intro paragraph to mention new container and utility types
 - Updated Table of Contents to 16 entries (was 12)
 - **String Obfuscation**: updated `Obfuscate` → `LString`, new decode API (`decode(enc)`
-  returns `std::string` by value; no more out-param), documented chained XOR/add/rotate
-  algorithm, removed removed `cstr()` alias
+  returns `std::string` by value; no more out-param), removed `cstr()` alias
 - **Semaphore / Condition**: noted separate `.cpp` implementation files
 - **New section — CList** (`clist.h`): thread-safe `std::deque` wrapper with condition
   variable; full API including push/pop variants, `pfpb`, `splice`, `freeze`/`thaw`,
