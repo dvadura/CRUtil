@@ -4,54 +4,71 @@
 
 `bif test` does not currently work (no test targets are configured in the inference map).
 
-To run the tests manually:
+### CMake (preferred)
 
-1. Build the library:
-   ```
-   bif do 0
-   ```
-
-2. Compile the test runner from the project root:
-   ```
-   cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -I ../Source/include -o test_runner \
-     test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
-     test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
-     test_lstring.cpp test_semaphore.cpp ../Source/crstring.cpp -lpthread
-   ```
-
-3. Run the tests:
-   ```
-   ./test_runner
-   ```
-
-The test framework is Catch2 (single-header, v2.13.0, located at `Test/catch2.hpp`).
-
-## LFList Tests (Lock-Free List)
-
-LFList tests require oneTBB library. It's installed locally at `.d/oneTBB/`.
-
-To compile and run tests with LFList support:
+Configure and build from the project root:
 
 ```bash
-cd Test && g++ -std=gnu++17 -D_GNU_SOURCE \
-  -I ../Source/include -I ../.d/oneTBB/include \
-  test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
-  test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
-  test_lstring.cpp test_semaphore.cpp test_lflist.cpp \
-  ../Source/crstring.cpp ../Source/condition.cpp ../Source/crexception.cpp ../Source/semaphore.cpp \
-  -L../.d/oneTBB/lib -ltbb -lpthread -o test_runner
+cmake -S . -B Build/cmake -DCRUTIL_BUILD_TESTS=ON
+cmake --build Build/cmake
+```
 
-# Run tests (set DYLD_LIBRARY_PATH for oneTBB)
+Run the tests:
+
+```bash
+./Build/cmake/test_runner
+```
+
+The test runner links against `libcrutildbg.a` (compiled with `-g -DDEBUG=1`) to ensure
+a consistent `Semaphore` layout across all translation units.
+
+### LFList Tests (Lock-Free List) via CMake
+
+LFList tests require oneTBB, installed locally at `.d/oneTBB/`.
+
+```bash
+cmake -S . -B Build/cmake -DCRUTIL_BUILD_TESTS=ON -DCRUTIL_BUILD_TBB_TESTS=ON
+cmake --build Build/cmake
+
+# Run (set DYLD_LIBRARY_PATH for oneTBB)
 export DYLD_LIBRARY_PATH=/Volumes/Development/DV/Live/CRUtil/.d/oneTBB/lib:$DYLD_LIBRARY_PATH
-./test_runner
+./Build/cmake/tbb_test_runner
 
 # Or run only LFList tests
+./Build/cmake/tbb_test_runner "[lflist]"
+```
+
+### Manual Build (fallback)
+
+```bash
+cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -DDEBUG=1 -g -I ../Source/include -o test_runner \
+  test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
+  test_clist.cpp test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
+  test_cuset.cpp test_lstring.cpp test_rqlist.cpp test_semaphore.cpp \
+  ../Source/condition.cpp ../Source/crexception.cpp ../Source/crstring.cpp ../Source/semaphore.cpp \
+  -lpthread
+./test_runner
+```
+
+Manual build with LFList support:
+
+```bash
+cd Test && g++ -std=gnu++17 -D_GNU_SOURCE -DDEBUG=1 -g \
+  -I ../Source/include -I ../.d/oneTBB/include \
+  test_main.cpp test_ainteger.cpp test_bigint.cpp test_bigint256.cpp \
+  test_clist.cpp test_condition.cpp test_crexception.cpp test_crstring.cpp test_crtimer.cpp \
+  test_cuset.cpp test_lflist.cpp test_lstring.cpp test_rqlist.cpp test_semaphore.cpp \
+  ../Source/condition.cpp ../Source/crexception.cpp ../Source/crstring.cpp ../Source/semaphore.cpp \
+  -L../.d/oneTBB/lib -ltbb -lpthread -o test_runner
+
+export DYLD_LIBRARY_PATH=/Volumes/Development/DV/Live/CRUtil/.d/oneTBB/lib:$DYLD_LIBRARY_PATH
 ./test_runner "[lflist]"
 ```
 
+The test framework is Catch2 (single-header, v2.13.0, located at `Test/catch2.hpp`).
+
 **Test Results:**
-- 37 LFList test cases
-- 2087 assertions
-- Full test suite: 219 test cases, 3111 assertions
+- Full suite (no LFList): 296 test cases, 2196 assertions
+- Full suite (with LFList): 296+ test cases
 
 See Documents/ONETBB_INTEGRATION.md for details on oneTBB installation and usage.
