@@ -138,10 +138,8 @@ namespace crutil {
          int result;
 
          ++m_waiters;
-#if (defined(_GNU_SOURCE) && !defined(ANDROID))
          CO_DEBUG("COND(%d)[%s,%c]: Wait (m_fired=%d,m_waiters=%d,to==%llu)\n", CRX_GETTID(),
                   m_sem.getVerbose(),(m_broadcast?'B':'N'),m_fired,m_waiters,(unsigned long long)nsec_timeout);
-#endif
 
          m_sem.cv(this);
          if (likely(nsec_timeout == 0)) {
@@ -289,14 +287,17 @@ namespace crutil {
          }
 
          m_sem.PP;
-#if (defined(_GNU_SOURCE) && !defined(ANDROID))
-         pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED,&oldtype);
-         pthread_setspecific(Condition::CONDKEY,this);
+
+         // CONDKEY + cleanup handlers are POSIX standard — available on all platforms.
+         // Cancel type control is not available on Android Bionic.
+         pthread_setspecific(Condition::CONDKEY, this);
          pthread_cleanup_push(Condition::threadCancel, this);
+#if !defined(ANDROID)
+         pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+#endif
 
          CO_DEBUG("COND(%d)[%s,%c]: >>> waitFor(t=%llu) <m_fired=%d,m_waiters=%d>\n", CRX_GETTID(),
                   m_sem.getVerbose(),(m_broadcast?'B':'N'),(unsigned long long)nsec_timeout,m_fired,m_waiters);
-#endif
 
          if (unlikely(m_broadcast == true)) {
             if (m_fired < 1) {
@@ -334,11 +335,11 @@ namespace crutil {
             }
          }
 
-#if (defined(_GNU_SOURCE) && !defined(ANDROID))
-         pthread_cleanup_pop(0);
-         pthread_setspecific(Condition::CONDKEY,NULL);
-         pthread_setcanceltype(oldtype,&oldtype);
+#if !defined(ANDROID)
+         pthread_setcanceltype(oldtype, &oldtype);
 #endif
+         pthread_cleanup_pop(0);
+         pthread_setspecific(Condition::CONDKEY, NULL);
          m_sem.VV;
 
          if (m_enabled == false) {
